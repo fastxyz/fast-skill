@@ -110,8 +110,8 @@ export default function DemoPage() {
   const [busy, setBusy] = useState(false);
   const [creatingIntent, setCreatingIntent] = useState(false);
   const [error, setError] = useState('');
-  const [serviceId, setServiceId] = useState('mock-service');
-  const [amount, setAmount] = useState('10');
+  const [serviceId, setServiceId] = useState('');
+  const [amount, setAmount] = useState('');
   const [settlementChain, setSettlementChain] = useState<SettlementChain>('fast');
   const [defaults, setDefaults] = useState<IntentResponse['defaults'] | null>(null);
 
@@ -189,8 +189,8 @@ export default function DemoPage() {
         method: 'POST',
         body: JSON.stringify({
           buyerSessionId: session.sessionId,
-          serviceId,
-          amount,
+          serviceId: serviceId.trim() || 'movie tickets',
+          amount: amount.trim() || '2',
           settlementChain,
         }),
       });
@@ -279,33 +279,42 @@ export default function DemoPage() {
         <section style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem' }}>
           <h2 style={{ fontSize: '0.95rem', marginBottom: '0.75rem' }}>Merchant: Create Intent</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-            <input
-              value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
-              placeholder="service id"
-              style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
-            />
-            <input
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="amount (SET)"
-              type="number"
-              min="0"
-              step="any"
-              style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
-            />
-            <select
-              value={settlementChain}
-              onChange={(e) => setSettlementChain(e.target.value as SettlementChain)}
-              style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
-            >
-              <option value="fast">Settle on Fast</option>
-              <option value="arbitrum-sepolia">Settle on Arbitrum Sepolia (via OmniSet)</option>
-            </select>
+            <label style={{ display: 'grid', gap: '0.3rem' }}>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Service / Product</span>
+              <input
+                value={serviceId}
+                onChange={(e) => setServiceId(e.target.value)}
+                placeholder="movie tickets"
+                style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
+              />
+            </label>
+            <label style={{ display: 'grid', gap: '0.3rem' }}>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Amount (SET)</span>
+              <input
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="2"
+                type="number"
+                min="0"
+                step="any"
+                style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
+              />
+            </label>
+            <label style={{ display: 'grid', gap: '0.3rem' }}>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Settlement Chain</span>
+              <select
+                value={settlementChain}
+                onChange={(e) => setSettlementChain(e.target.value as SettlementChain)}
+                style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
+              >
+                <option value="fast">Fast</option>
+                <option value="arbitrum-sepolia">Arbitrum Sepolia (via OmniSet)</option>
+              </select>
+            </label>
             <button
               onClick={() => void createIntent()}
               disabled={busy || creatingIntent || !session}
-              style={{ background: 'var(--text)', color: 'var(--bg)', border: 0, borderRadius: 6, padding: '0.55rem 0.9rem', cursor: 'pointer' }}
+              style={{ background: 'var(--text)', color: 'var(--bg)', border: 0, borderRadius: 6, padding: '0.55rem 0.9rem', cursor: 'pointer', alignSelf: 'end' }}
             >
               {creatingIntent ? 'Creating...' : 'Create'}
             </button>
@@ -393,8 +402,8 @@ export default function DemoPage() {
 
                   <div style={{ display: 'grid', gap: '0.45rem' }}>
                     {intent.status !== 'expired' && intent.status !== 'delivered' && (
-                      <details style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '0.4rem 0.55rem' }}>
-                        <summary style={{ cursor: 'pointer', fontSize: '0.79rem', color: 'var(--text)' }}>
+                      <details style={{ color: 'var(--text-2)' }}>
+                        <summary style={{ cursor: 'pointer', fontSize: '0.79rem' }}>
                           Simulate Buyer Transaction
                         </summary>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', marginTop: '0.55rem' }}>
@@ -403,7 +412,7 @@ export default function DemoPage() {
                             onClick={() => void payIntent(intent.intentId)}
                             style={{ border: '1px solid var(--border)', borderRadius: 5, padding: '0.4rem 0.7rem', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}
                           >
-                            {intent.settlementChain === 'fast' ? 'Buyer Pay Exact' : 'Buyer Pay+Bridge Exact'}
+                            Buyer Pays Exact Price
                           </button>
                           <button
                             disabled={busy}
@@ -413,7 +422,7 @@ export default function DemoPage() {
                             }}
                             style={{ border: '1px solid var(--border)', borderRadius: 5, padding: '0.4rem 0.7rem', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}
                           >
-                            {intent.settlementChain === 'fast' ? 'Buyer Pay +1 SET' : 'Buyer Pay+Bridge +1 SET'}
+                            Buyer Overpays +1 SET
                           </button>
                         </div>
                       </details>
