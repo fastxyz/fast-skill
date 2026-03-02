@@ -100,7 +100,7 @@ export default function PayPage() {
       params.set('memo', memo.trim());
     }
 
-    const url = window.location.origin + '/api/pay?' + params.toString();
+    const url = window.location.origin + '/pay?' + params.toString();
     setResultUrl(url);
   }
 
@@ -351,7 +351,7 @@ export default function PayPage() {
           <div className="nav-inner">
             <a href="/" className="nav-wordmark">money</a>
             <div className="nav-links">
-              <a href="/pay">Pay</a>
+              <a href="/pay/create">Pay</a>
               <a href="/skill.md">Skill</a>
               <a href="/money.bundle.js" download>Bundle</a>
             </div>
@@ -498,7 +498,7 @@ export default function PayPage() {
           <div className="container footer-inner">
             <span className="footer-credit">Fast Protocol</span>
             <nav className="footer-nav">
-              <a href="/pay">Pay</a>
+              <a href="/pay/create">Pay</a>
               <a href="/skill.md">Skill</a>
               <a href="/money.bundle.js" download>Bundle</a>
             </nav>
