@@ -10,6 +10,7 @@ import { omnisetProvider } from '../../../dist/src/providers/omniset.js';
 import {
   getPaymentLinkProvider,
 } from './payment-links/registry';
+import { createNativeAgentLink } from './payment-links/native';
 import type { ProviderPaymentStatus } from './payment-links/types';
 import { getDemoState } from './store';
 import type {
@@ -217,6 +218,7 @@ function toIntentView(intent: PaymentIntentRecord): PaymentIntentView {
     paymentLinkProviderRef: intent.paymentLinkProviderRef,
     receiverAddress: intent.receiverAddress,
     paymentLink: intent.paymentLink,
+    paymentLinkAgent: intent.paymentLinkAgent,
     expiresAt: intent.expiresAt,
     status: intent.status,
     createdAt: intent.createdAt,
@@ -637,6 +639,13 @@ export async function createPaymentIntent(params: {
     amount,
     settlementChain,
   });
+  const paymentLinkAgent = createNativeAgentLink({
+    baseUrl: params.baseUrl,
+    intentId,
+    receiver: receiver.address,
+    amount,
+    settlementChain,
+  });
 
   const intent: PaymentIntentRecord = {
     intentId,
@@ -652,6 +661,7 @@ export async function createPaymentIntent(params: {
     receiverAddress: receiver.address,
     receiverAccountId: receiver.accountId,
     paymentLink: paymentLink.url,
+    paymentLinkAgent,
     expiresAt,
     status: 'pending_payment',
     createdAt,

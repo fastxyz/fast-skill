@@ -27,6 +27,7 @@ type PaymentIntent = {
   settlementChain: string;
   receiverAddress: string;
   paymentLink: string;
+  paymentLinkAgent?: string;
   expiresAt: string;
   status: string;
   createdAt: string;
@@ -513,7 +514,7 @@ export default function DemoPage() {
                       Settlement: <strong>{intent.settlementChain === 'fast' ? 'Fast' : 'Arbitrum Sepolia'}</strong>
                     </div>
                     <div>
-                      Link:{' '}
+                      Link to payment page:{' '}
                       <a
                         ref={isTourLinkTarget ? tourLinkRef : undefined}
                         href={intent.paymentLink}
@@ -536,6 +537,16 @@ export default function DemoPage() {
                       >
                         {intent.paymentLink}
                       </a>
+                    </div>
+                    <div>
+                      Link for agents:{' '}
+                      {intent.paymentLinkAgent ? (
+                        <a href={intent.paymentLinkAgent} target="_blank" rel="noreferrer" style={{ color: 'var(--rule)' }}>
+                          {intent.paymentLinkAgent}
+                        </a>
+                      ) : (
+                        <span style={{ color: 'var(--text-3)' }}>—</span>
+                      )}
                     </div>
                     <div>
                       Expires in: <strong>{countdownLabel(intent.expiresAt)}</strong>
