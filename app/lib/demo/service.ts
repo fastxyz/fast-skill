@@ -156,11 +156,49 @@ function parsePositiveAmount(value: string | number | undefined): string {
   if (value === undefined || value === null || value === '') {
     throw new DemoError('Amount is required.');
   }
-  const num = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(num) || num <= 0) {
+
+  let raw = typeof value === 'number' ? value.toString() : value.trim();
+  if (raw.length === 0) {
+    throw new DemoError('Amount is required.');
+  }
+  if (/[eE]/.test(raw)) {
+    throw new DemoError('Amount must use decimal notation (for example: 2 or 0.5).');
+  }
+  if (!/^(?:\d+\.?\d*|\.\d+)$/.test(raw)) {
     throw new DemoError('Amount must be a positive number.');
   }
-  return num.toString();
+  if (raw.startsWith('.')) {
+    raw = `0${raw}`;
+  }
+
+  const [wholePart, fractionPart = ''] = raw.split('.');
+  const normalizedWhole = wholePart.replace(/^0+(?=\d)/, '');
+  const normalizedFraction = fractionPart.replace(/0+$/, '');
+  const normalized = normalizedFraction.length > 0
+    ? `${normalizedWhole || '0'}.${normalizedFraction}`
+    : (normalizedWhole || '0');
+
+  let rawAmount: bigint;
+  try {
+    rawAmount = toRawAmount(normalized);
+  } catch {
+    throw new DemoError(`Amount must be a positive number with up to ${FAST_DECIMALS} decimals.`);
+  }
+
+  if (rawAmount <= BigInt(0)) {
+    throw new DemoError('Amount must be a positive number.');
+  }
+  return normalized;
+}
+
+function parseSettlementChain(value: SettlementChain | string | undefined): SettlementChain {
+  if (value === undefined || value === null || value === '') {
+    return 'fast';
+  }
+  if (value === 'fast' || value === 'arbitrum-sepolia') {
+    return value;
+  }
+  throw new DemoError('Settlement chain must be one of: fast, arbitrum-sepolia.');
 }
 
 function toRawAmount(amount: string): bigint {
@@ -614,7 +652,7 @@ export async function createPaymentIntent(params: {
   serviceId?: string;
   amount: string | number;
   expiryMinutes?: number;
-  settlementChain?: SettlementChain;
+  settlementChain?: SettlementChain | string;
   baseUrl: string;
 }): Promise<PaymentIntentView> {
   const state = getDemoState();
@@ -624,7 +662,7 @@ export async function createPaymentIntent(params: {
   }
 
   const amount = parsePositiveAmount(params.amount);
-  const settlementChain: SettlementChain = params.settlementChain ?? 'fast';
+  const settlementChain = parseSettlementChain(params.settlementChain);
   const paymentLinkProvider = getPaymentLinkProvider('native');
   const expiryMinutes = params.expiryMinutes ?? DEFAULT_EXPIRY_MINUTES;
   if (!Number.isFinite(expiryMinutes) || expiryMinutes <= 0) {
