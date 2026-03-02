@@ -32,7 +32,7 @@ export default async function Home() {
         <div className="nav-inner">
           <span className="nav-wordmark">money</span>
           <div className="nav-links">
-            <a href="/merchant">Merchant</a>
+            <a href="/merchant">Merchant Demo</a>
             <a href="/pay">Pay</a>
             <a href="/skill.md">Skill</a>
             <a href="/money.bundle.js" download>Bundle</a>

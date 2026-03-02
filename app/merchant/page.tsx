@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { PRODUCT_TOUR_QUERY_PARAM, PRODUCT_TOUR_STORAGE_KEY } from '../lib/demo/tour';
 
 type BuyerSession = {
   sessionId: string;
@@ -26,6 +27,7 @@ type PaymentIntent = {
   settlementChain: string;
   receiverAddress: string;
   paymentLink: string;
+  paymentLinkAgent?: string;
   expiresAt: string;
   status: string;
   createdAt: string;
@@ -40,6 +42,7 @@ type PaymentIntent = {
 };
 
 type SettlementChain = 'fast' | 'arbitrum-sepolia';
+type MerchantTourStep = 'fill_fields' | 'create_intent' | 'open_link';
 
 type IntentResponse = {
   intents: PaymentIntent[];
@@ -103,6 +106,16 @@ function countdownLabel(expiresAt: string): string {
   return `${mins}m ${secs.toString().padStart(2, '0')}s`;
 }
 
+function tourMessage(step: MerchantTourStep): string {
+  if (step === 'fill_fields') {
+    return 'Add service/product details and amount to start the flow.';
+  }
+  if (step === 'create_intent') {
+    return 'Click Create to generate a new payment intent.';
+  }
+  return 'Open the payment link in a new tab to continue buyer checkout.';
+}
+
 export default function DemoPage() {
   const [session, setSession] = useState<BuyerSession | null>(null);
   const [intents, setIntents] = useState<PaymentIntent[]>([]);
@@ -114,11 +127,91 @@ export default function DemoPage() {
   const [amount, setAmount] = useState('');
   const [settlementChain, setSettlementChain] = useState<SettlementChain>('fast');
   const [defaults, setDefaults] = useState<IntentResponse['defaults'] | null>(null);
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStep, setTourStep] = useState<MerchantTourStep>('fill_fields');
+  const [tourIntentId, setTourIntentId] = useState<string | null>(null);
+  const [tourCursor, setTourCursor] = useState<{ x: number; y: number } | null>(null);
+  const serviceInputRef = useRef<HTMLInputElement | null>(null);
+  const amountInputRef = useRef<HTMLInputElement | null>(null);
+  const createButtonRef = useRef<HTMLButtonElement | null>(null);
+  const tourLinkRef = useRef<HTMLAnchorElement | null>(null);
 
   const activeIntents = useMemo(
     () => intents.filter((i) => !['expired', 'delivered'].includes(i.status)),
     [intents],
   );
+
+  useEffect(() => {
+    try {
+      const completed = window.localStorage.getItem(PRODUCT_TOUR_STORAGE_KEY) === 'completed';
+      if (!completed) {
+        setTourActive(true);
+      }
+    } catch {
+      setTourActive(false);
+    }
+
+    function onStorage(event: StorageEvent) {
+      if (event.key !== PRODUCT_TOUR_STORAGE_KEY) return;
+      if (event.newValue === 'completed') {
+        setTourActive(false);
+      }
+    }
+
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!tourActive) return;
+    if (tourStep !== 'fill_fields') return;
+    if (serviceId.trim().length > 0 && amount.trim().length > 0) {
+      setTourStep('create_intent');
+    }
+  }, [tourActive, tourStep, serviceId, amount]);
+
+  useEffect(() => {
+    if (!tourActive) {
+      setTourCursor(null);
+      return;
+    }
+
+    function targetElement(): HTMLElement | null {
+      if (tourStep === 'fill_fields') {
+        return serviceInputRef.current ?? amountInputRef.current;
+      }
+      if (tourStep === 'create_intent') {
+        return createButtonRef.current;
+      }
+      return tourLinkRef.current;
+    }
+
+    function updateCursorPosition() {
+      const target = targetElement();
+      if (!target) {
+        setTourCursor(null);
+        return;
+      }
+      const rect = target.getBoundingClientRect();
+      setTourCursor({
+        x: rect.left + 12,
+        y: rect.bottom - 8,
+      });
+    }
+
+    updateCursorPosition();
+    const intervalId = window.setInterval(updateCursorPosition, 220);
+    window.addEventListener('resize', updateCursorPosition);
+    window.addEventListener('scroll', updateCursorPosition, true);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('resize', updateCursorPosition);
+      window.removeEventListener('scroll', updateCursorPosition, true);
+    };
+  }, [tourActive, tourStep, intents, creatingIntent]);
 
   async function refreshSession() {
     const data = await fetchJson<SessionResponse>('/api/demo/session', {
@@ -185,6 +278,9 @@ export default function DemoPage() {
       setBusy(true);
       setCreatingIntent(true);
       setError('');
+      if (tourActive && tourStep === 'fill_fields') {
+        setTourStep('create_intent');
+      }
       const created = await fetchJson<CreateIntentResponse>('/api/demo/intents', {
         method: 'POST',
         body: JSON.stringify({
@@ -198,6 +294,10 @@ export default function DemoPage() {
       if (!appeared) {
         setError('Intent was created, but the list is still syncing. It should appear shortly.');
         await refreshIntents();
+      }
+      if (tourActive) {
+        setTourIntentId(created.intent.intentId);
+        setTourStep('open_link');
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -279,18 +379,36 @@ export default function DemoPage() {
         <section style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem' }}>
           <h2 style={{ fontSize: '0.95rem', marginBottom: '0.75rem' }}>Merchant: Create Intent</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-            <label style={{ display: 'grid', gap: '0.3rem' }}>
+            <label
+              style={{
+                display: 'grid',
+                gap: '0.3rem',
+                borderRadius: 8,
+                padding: tourActive && tourStep === 'fill_fields' ? '0.35rem' : 0,
+                outline: tourActive && tourStep === 'fill_fields' ? '1px solid #7dd3fc' : 'none',
+              }}
+            >
               <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Service / Product</span>
               <input
+                ref={serviceInputRef}
                 value={serviceId}
                 onChange={(e) => setServiceId(e.target.value)}
                 placeholder="movie tickets"
                 style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
               />
             </label>
-            <label style={{ display: 'grid', gap: '0.3rem' }}>
+            <label
+              style={{
+                display: 'grid',
+                gap: '0.3rem',
+                borderRadius: 8,
+                padding: tourActive && tourStep === 'fill_fields' ? '0.35rem' : 0,
+                outline: tourActive && tourStep === 'fill_fields' ? '1px solid #7dd3fc' : 'none',
+              }}
+            >
               <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Amount (SET)</span>
               <input
+                ref={amountInputRef}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="2"
@@ -312,9 +430,20 @@ export default function DemoPage() {
               </select>
             </label>
             <button
+              ref={createButtonRef}
               onClick={() => void createIntent()}
               disabled={busy || creatingIntent || !session}
-              style={{ background: 'var(--text)', color: 'var(--bg)', border: 0, borderRadius: 6, padding: '0.55rem 0.9rem', cursor: 'pointer', alignSelf: 'end' }}
+              style={{
+                background: 'var(--text)',
+                color: 'var(--bg)',
+                border: 0,
+                borderRadius: 6,
+                padding: '0.55rem 0.9rem',
+                cursor: 'pointer',
+                alignSelf: 'end',
+                outline: tourActive && tourStep === 'create_intent' ? '1px solid #7dd3fc' : 'none',
+                boxShadow: tourActive && tourStep === 'create_intent' ? '0 0 0 4px rgba(125, 211, 252, 0.25)' : 'none',
+              }}
             >
               {creatingIntent ? 'Creating...' : 'Create'}
             </button>
@@ -338,18 +467,22 @@ export default function DemoPage() {
             <p style={{ color: 'var(--text-3)' }}>No intents yet.</p>
           ) : (
             <div style={{ display: 'grid', gap: '0.9rem' }}>
-              {intents.map((intent) => (
-                <article
-                  key={intent.intentId}
-                  style={{
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    background: 'var(--code-bg)',
-                    padding: '0.9rem',
-                    display: 'grid',
-                    gap: '0.65rem',
-                  }}
-                >
+              {intents.map((intent, index) => {
+                const isTourLinkTarget = tourActive
+                  && tourStep === 'open_link'
+                  && (tourIntentId ? intent.intentId === tourIntentId : index === 0);
+                return (
+                  <article
+                    key={intent.intentId}
+                    style={{
+                      border: '1px solid var(--border)',
+                      borderRadius: 8,
+                      background: 'var(--code-bg)',
+                      padding: '0.9rem',
+                      display: 'grid',
+                      gap: '0.65rem',
+                    }}
+                  >
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                     <div style={{ display: 'grid', gap: '0.25rem' }}>
                       <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: '0.76rem', color: 'var(--text-3)' }}>
@@ -381,7 +514,39 @@ export default function DemoPage() {
                       Settlement: <strong>{intent.settlementChain === 'fast' ? 'Fast' : 'Arbitrum Sepolia'}</strong>
                     </div>
                     <div>
-                      Link: <a href={intent.paymentLink} target="_blank" rel="noreferrer" style={{ color: 'var(--rule)' }}>{intent.paymentLink}</a>
+                      Link to payment page:{' '}
+                      <a
+                        ref={isTourLinkTarget ? tourLinkRef : undefined}
+                        href={intent.paymentLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(event) => {
+                          if (!isTourLinkTarget || !tourActive || tourStep !== 'open_link') return;
+                          event.preventDefault();
+                          const checkoutUrl = new URL(intent.paymentLink, window.location.origin);
+                          checkoutUrl.searchParams.set(PRODUCT_TOUR_QUERY_PARAM, '1');
+                          window.open(checkoutUrl.toString(), '_blank', 'noopener,noreferrer');
+                        }}
+                        style={{
+                          color: 'var(--rule)',
+                          borderRadius: 6,
+                          padding: isTourLinkTarget ? '0.05rem 0.2rem' : 0,
+                          outline: isTourLinkTarget ? '1px solid #7dd3fc' : 'none',
+                          boxShadow: isTourLinkTarget ? '0 0 0 4px rgba(125, 211, 252, 0.25)' : 'none',
+                        }}
+                      >
+                        {intent.paymentLink}
+                      </a>
+                    </div>
+                    <div>
+                      Link for agents:{' '}
+                      {intent.paymentLinkAgent ? (
+                        <a href={intent.paymentLinkAgent} target="_blank" rel="noreferrer" style={{ color: 'var(--rule)' }}>
+                          {intent.paymentLinkAgent}
+                        </a>
+                      ) : (
+                        <span style={{ color: 'var(--text-3)' }}>—</span>
+                      )}
                     </div>
                     <div>
                       Expires in: <strong>{countdownLabel(intent.expiresAt)}</strong>
@@ -454,12 +619,83 @@ export default function DemoPage() {
                       ))}
                     </div>
                   )}
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
       </div>
+      {tourActive && (
+        <>
+          {tourCursor && (
+            <>
+              <div
+                style={{
+                  position: 'fixed',
+                  left: tourCursor.x,
+                  top: tourCursor.y,
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  background: '#7dd3fc',
+                  transform: 'translate(-8px, -8px)',
+                  pointerEvents: 'none',
+                  zIndex: 90,
+                  animation: 'productTourCursorDot 1.1s ease-in-out infinite alternate',
+                }}
+              />
+              <div
+                style={{
+                  position: 'fixed',
+                  left: tourCursor.x,
+                  top: tourCursor.y,
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  border: '2px solid rgba(125, 211, 252, 0.8)',
+                  transform: 'translate(-14px, -14px)',
+                  pointerEvents: 'none',
+                  zIndex: 89,
+                  animation: 'productTourCursorRing 1.1s ease-out infinite',
+                }}
+              />
+            </>
+          )}
+          <div
+            style={{
+              position: 'fixed',
+              right: 18,
+              bottom: 18,
+              width: 'min(360px, calc(100vw - 2rem))',
+              borderRadius: 10,
+              border: '1px solid #33506a',
+              background: 'rgba(12, 18, 24, 0.92)',
+              color: '#dbeafe',
+              padding: '0.8rem 0.9rem',
+              zIndex: 95,
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.35)',
+            }}
+          >
+            <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#93c5fd' }}>
+              Product Tour
+            </div>
+            <div style={{ fontSize: '0.86rem', marginTop: '0.35rem' }}>
+              {tourMessage(tourStep)}
+            </div>
+          </div>
+          <style jsx global>{`
+            @keyframes productTourCursorDot {
+              from { transform: translate(-8px, -8px) scale(1); }
+              to { transform: translate(-8px, -8px) scale(0.82); }
+            }
+            @keyframes productTourCursorRing {
+              from { transform: translate(-14px, -14px) scale(0.7); opacity: 0.95; }
+              to { transform: translate(-14px, -14px) scale(1.2); opacity: 0.15; }
+            }
+          `}</style>
+        </>
+      )}
     </main>
   );
 }

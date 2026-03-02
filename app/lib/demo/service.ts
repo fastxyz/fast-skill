@@ -10,6 +10,7 @@ import { omnisetProvider } from '../../../dist/src/providers/omniset.js';
 import {
   getPaymentLinkProvider,
 } from './payment-links/registry';
+import { createNativeAgentLink } from './payment-links/native';
 import type { ProviderPaymentStatus } from './payment-links/types';
 import { getDemoState } from './store';
 import type {
@@ -27,6 +28,7 @@ const FAST_DECIMALS = 18;
 const DEFAULT_EXPIRY_MINUTES = 15;
 const RECEIVER_COOLDOWN_MINUTES = 30;
 const VERIFIER_INTERVAL_MS = 5_000;
+const MIN_VERIFIER_TICK_GAP_MS = 2_000;
 const AUTO_DELIVER_ENABLED = (process.env.DEMO_AUTO_DELIVER ?? '1').trim() !== '0';
 const AUTO_DELIVER_DELAY_MS = (() => {
   const parsed = Number(process.env.DEMO_AUTO_DELIVER_DELAY_MS ?? '0');
@@ -154,11 +156,49 @@ function parsePositiveAmount(value: string | number | undefined): string {
   if (value === undefined || value === null || value === '') {
     throw new DemoError('Amount is required.');
   }
-  const num = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(num) || num <= 0) {
+
+  let raw = typeof value === 'number' ? value.toString() : value.trim();
+  if (raw.length === 0) {
+    throw new DemoError('Amount is required.');
+  }
+  if (/[eE]/.test(raw)) {
+    throw new DemoError('Amount must use decimal notation (for example: 2 or 0.5).');
+  }
+  if (!/^(?:\d+\.?\d*|\.\d+)$/.test(raw)) {
     throw new DemoError('Amount must be a positive number.');
   }
-  return num.toString();
+  if (raw.startsWith('.')) {
+    raw = `0${raw}`;
+  }
+
+  const [wholePart, fractionPart = ''] = raw.split('.');
+  const normalizedWhole = wholePart.replace(/^0+(?=\d)/, '');
+  const normalizedFraction = fractionPart.replace(/0+$/, '');
+  const normalized = normalizedFraction.length > 0
+    ? `${normalizedWhole || '0'}.${normalizedFraction}`
+    : (normalizedWhole || '0');
+
+  let rawAmount: bigint;
+  try {
+    rawAmount = toRawAmount(normalized);
+  } catch {
+    throw new DemoError(`Amount must be a positive number with up to ${FAST_DECIMALS} decimals.`);
+  }
+
+  if (rawAmount <= BigInt(0)) {
+    throw new DemoError('Amount must be a positive number.');
+  }
+  return normalized;
+}
+
+function parseSettlementChain(value: SettlementChain | string | undefined): SettlementChain {
+  if (value === undefined || value === null || value === '') {
+    return 'fast';
+  }
+  if (value === 'fast' || value === 'arbitrum-sepolia') {
+    return value;
+  }
+  throw new DemoError('Settlement chain must be one of: fast, arbitrum-sepolia.');
 }
 
 function toRawAmount(amount: string): bigint {
@@ -217,6 +257,7 @@ function toIntentView(intent: PaymentIntentRecord): PaymentIntentView {
     paymentLinkProviderRef: intent.paymentLinkProviderRef,
     receiverAddress: intent.receiverAddress,
     paymentLink: intent.paymentLink,
+    paymentLinkAgent: intent.paymentLinkAgent,
     expiresAt: intent.expiresAt,
     status: intent.status,
     createdAt: intent.createdAt,
@@ -545,18 +586,26 @@ async function reconcileIntent(intent: PaymentIntentRecord, nowMs: number): Prom
   }
 }
 
-export async function runVerifierTick(): Promise<void> {
+export async function runVerifierTick(options?: { force?: boolean }): Promise<void> {
   const state = getDemoState();
+  const nowMs = Date.now();
+  if (
+    !options?.force
+    && state.lastVerifierTickAt > 0
+    && nowMs - state.lastVerifierTickAt < MIN_VERIFIER_TICK_GAP_MS
+  ) {
+    return;
+  }
   if (state.verifierActive) return;
   state.verifierActive = true;
 
   try {
-    const nowMs = Date.now();
     const intents = [...state.intents.values()];
     for (const intent of intents) {
       await reconcileIntent(intent, nowMs);
       maybeAutoDeliverIntent(intent, nowMs);
     }
+    state.lastVerifierTickAt = Date.now();
   } finally {
     state.verifierActive = false;
   }
@@ -564,7 +613,12 @@ export async function runVerifierTick(): Promise<void> {
 
 export function ensureVerifierStarted(): void {
   const state = getDemoState();
-  if (state.verifierTimer) return;
+  if (state.verifierTimer) {
+    if (process.env.NODE_ENV === 'production') return;
+    // In dev/HMR, replace previous timer to avoid stale interval callbacks.
+    clearInterval(state.verifierTimer);
+    state.verifierTimer = null;
+  }
 
   state.verifierTimer = setInterval(() => {
     void runVerifierTick();
@@ -598,7 +652,7 @@ export async function createPaymentIntent(params: {
   serviceId?: string;
   amount: string | number;
   expiryMinutes?: number;
-  settlementChain?: SettlementChain;
+  settlementChain?: SettlementChain | string;
   baseUrl: string;
 }): Promise<PaymentIntentView> {
   const state = getDemoState();
@@ -608,7 +662,7 @@ export async function createPaymentIntent(params: {
   }
 
   const amount = parsePositiveAmount(params.amount);
-  const settlementChain: SettlementChain = params.settlementChain ?? 'fast';
+  const settlementChain = parseSettlementChain(params.settlementChain);
   const paymentLinkProvider = getPaymentLinkProvider('native');
   const expiryMinutes = params.expiryMinutes ?? DEFAULT_EXPIRY_MINUTES;
   if (!Number.isFinite(expiryMinutes) || expiryMinutes <= 0) {
@@ -637,6 +691,13 @@ export async function createPaymentIntent(params: {
     amount,
     settlementChain,
   });
+  const paymentLinkAgent = createNativeAgentLink({
+    baseUrl: params.baseUrl,
+    intentId,
+    receiver: receiver.address,
+    amount,
+    settlementChain,
+  });
 
   const intent: PaymentIntentRecord = {
     intentId,
@@ -652,6 +713,7 @@ export async function createPaymentIntent(params: {
     receiverAddress: receiver.address,
     receiverAccountId: receiver.accountId,
     paymentLink: paymentLink.url,
+    paymentLinkAgent,
     expiresAt,
     status: 'pending_payment',
     createdAt,
@@ -797,13 +859,13 @@ export async function payIntent(params: {
     });
   }
 
-  await runVerifierTick();
+  await runVerifierTick({ force: true });
   return toIntentView(intent);
 }
 
 export async function deliverIntent(intentId: string): Promise<PaymentIntentView> {
   ensureVerifierStarted();
-  await runVerifierTick();
+  await runVerifierTick({ force: true });
 
   const intent = getDemoState().intents.get(intentId);
   if (!intent) {
@@ -840,7 +902,7 @@ export async function handlePaymentLinkWebhook(params: {
 
   const nowMs = Date.now();
   applyProviderStatusToIntent(intent, params.status, 'webhook', nowMs);
-  await runVerifierTick();
+  await runVerifierTick({ force: true });
 
   return {
     matched: true,
@@ -853,6 +915,7 @@ export const DEMO_DEFAULTS = {
   expiryMinutes: DEFAULT_EXPIRY_MINUTES,
   receiverCooldownMinutes: RECEIVER_COOLDOWN_MINUTES,
   verifierIntervalMs: VERIFIER_INTERVAL_MS,
+  minVerifierTickGapMs: MIN_VERIFIER_TICK_GAP_MS,
   autoDeliveryEnabled: AUTO_DELIVER_ENABLED,
   autoDeliveryDelayMs: AUTO_DELIVER_DELAY_MS,
 };

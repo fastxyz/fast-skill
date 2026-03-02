@@ -10,6 +10,7 @@ function createState(): DemoState {
     events: new Map(),
     verifierTimer: null,
     verifierActive: false,
+    lastVerifierTickAt: 0,
   };
 }
 
@@ -19,4 +20,3 @@ export function getDemoState(): DemoState {
   }
   return g.__moneyDemoState;
 }
-

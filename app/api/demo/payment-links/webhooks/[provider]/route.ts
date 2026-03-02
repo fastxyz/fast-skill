@@ -1,23 +1,32 @@
 import { NextResponse } from 'next/server';
+import { demoErrorResponse } from '../../../../../lib/demo/api-utils';
 import { tryGetPaymentLinkProvider } from '../../../../../lib/demo/payment-links/registry';
-import { DemoError, handlePaymentLinkWebhook } from '../../../../../lib/demo/service';
+import { handlePaymentLinkWebhook } from '../../../../../lib/demo/service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function errorResponse(err: unknown) {
-  if (err instanceof DemoError) {
-    return NextResponse.json({ error: err.message }, { status: err.status });
-  }
-  const message = err instanceof Error ? err.message : String(err);
-  return NextResponse.json({ error: message }, { status: 500 });
-}
+// Demo security limitations:
+// - This endpoint does not verify provider signatures.
+// - Payload schema is trusted and provider refs are accepted as-is.
+// - Only enable when explicitly testing mocked webhook flows in non-production setups.
+const DEMO_ENABLE_MOCK_WEBHOOKS = (process.env.DEMO_ENABLE_MOCK_WEBHOOKS ?? '').trim() === '1';
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ provider: string }> },
 ) {
   try {
+    if (!DEMO_ENABLE_MOCK_WEBHOOKS) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: 'Mock webhook endpoint disabled. Set DEMO_ENABLE_MOCK_WEBHOOKS=1 to enable for local demo testing.',
+        },
+        { status: 403 },
+      );
+    }
+
     const { provider } = await context.params;
     const adapter = tryGetPaymentLinkProvider(provider);
     if (!adapter) {
@@ -62,6 +71,6 @@ export async function POST(
       applied,
     });
   } catch (err: unknown) {
-    return errorResponse(err);
+    return demoErrorResponse(err);
   }
 }

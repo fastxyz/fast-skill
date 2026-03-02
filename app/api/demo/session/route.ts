@@ -1,8 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { DEMO_SESSION_COOKIE, setDemoSessionCookie } from '../../../lib/demo/api-utils';
 import { ensureBuyerSession } from '../../../lib/demo/service';
-
-const DEMO_SESSION_COOKIE = 'money_demo_session_id';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,24 +15,13 @@ async function getOrCreateSession() {
 export async function GET() {
   const session = await getOrCreateSession();
   const response = NextResponse.json({ session });
-  response.cookies.set(DEMO_SESSION_COOKIE, session.sessionId, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7,
-  });
+  setDemoSessionCookie(response, session.sessionId);
   return response;
 }
 
 export async function POST() {
   const session = await getOrCreateSession();
   const response = NextResponse.json({ session });
-  response.cookies.set(DEMO_SESSION_COOKIE, session.sessionId, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7,
-  });
+  setDemoSessionCookie(response, session.sessionId);
   return response;
 }
-

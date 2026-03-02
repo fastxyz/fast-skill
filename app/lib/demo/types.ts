@@ -45,6 +45,7 @@ export interface PaymentIntentRecord {
   receiverAddress: string;
   receiverAccountId: string;
   paymentLink: string;
+  paymentLinkAgent?: string;
   expiresAt: string;
   status: DemoIntentStatus;
   createdAt: string;
@@ -82,6 +83,7 @@ export interface DemoState {
   events: Map<string, ProofEvent[]>;
   verifierTimer: NodeJS.Timeout | null;
   verifierActive: boolean;
+  lastVerifierTickAt: number;
 }
 
 export interface BuyerSessionView {
@@ -103,6 +105,7 @@ export interface PaymentIntentView {
   paymentLinkProviderRef?: string;
   receiverAddress: string;
   paymentLink: string;
+  paymentLinkAgent?: string;
   expiresAt: string;
   status: DemoIntentStatus;
   createdAt: string;

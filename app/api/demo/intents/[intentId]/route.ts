@@ -1,16 +1,9 @@
 import { NextResponse } from 'next/server';
-import { DemoError, getPaymentIntent } from '../../../../lib/demo/service';
+import { demoErrorResponse } from '../../../../lib/demo/api-utils';
+import { getPaymentIntent } from '../../../../lib/demo/service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-function errorResponse(err: unknown) {
-  if (err instanceof DemoError) {
-    return NextResponse.json({ error: err.message }, { status: err.status });
-  }
-  const message = err instanceof Error ? err.message : String(err);
-  return NextResponse.json({ error: message }, { status: 500 });
-}
 
 export async function GET(
   _request: Request,
@@ -24,7 +17,6 @@ export async function GET(
     }
     return NextResponse.json({ intent });
   } catch (err: unknown) {
-    return errorResponse(err);
+    return demoErrorResponse(err);
   }
 }
-

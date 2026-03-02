@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { PRODUCT_TOUR_QUERY_PARAM, PRODUCT_TOUR_STORAGE_KEY } from '../../lib/demo/tour';
 
 type SettlementChain = 'fast' | 'arbitrum-sepolia';
+type CheckoutTourStep = 'pay_now' | 'back_to_merchant';
 
 type PaymentIntent = {
   intentId: string;
@@ -57,18 +59,86 @@ function countdownLabel(expiresAt: string): string {
   return `${mins}m ${secs.toString().padStart(2, '0')}s`;
 }
 
+function checkoutTourMessage(step: CheckoutTourStep): string {
+  if (step === 'pay_now') {
+    return 'Click Pay Now to submit the buyer transaction.';
+  }
+  return 'Payment finished. Click Back To Merchant to return.';
+}
+
 function CheckoutContent() {
   const searchParams = useSearchParams();
   const intentId = searchParams.get('intentId') ?? '';
+  const tourParam = searchParams.get(PRODUCT_TOUR_QUERY_PARAM) ?? '';
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStep, setTourStep] = useState<CheckoutTourStep>('pay_now');
+  const [tourCursor, setTourCursor] = useState<{ x: number; y: number } | null>(null);
+  const payButtonRef = useRef<HTMLButtonElement | null>(null);
+  const backLinkRef = useRef<HTMLAnchorElement | null>(null);
 
   const settlementToken = useMemo(
     () => (intent?.settlementChain === 'fast' ? 'SET' : 'WSET'),
     [intent],
   );
+
+  useEffect(() => {
+    if (tourParam !== '1') return;
+    try {
+      const completed = window.localStorage.getItem(PRODUCT_TOUR_STORAGE_KEY) === 'completed';
+      setTourActive(!completed);
+    } catch {
+      setTourActive(false);
+    }
+  }, [tourParam]);
+
+  useEffect(() => {
+    if (!tourActive || !intent) return;
+    if (intent.status === 'settled' || intent.status === 'delivered') {
+      setTourStep('back_to_merchant');
+      return;
+    }
+    setTourStep('pay_now');
+  }, [tourActive, intent]);
+
+  useEffect(() => {
+    if (!tourActive) {
+      setTourCursor(null);
+      return;
+    }
+
+    function targetElement(): HTMLElement | null {
+      if (tourStep === 'pay_now') return payButtonRef.current;
+      return backLinkRef.current;
+    }
+
+    function updateCursorPosition() {
+      const target = targetElement();
+      if (!target) {
+        setTourCursor(null);
+        return;
+      }
+      const rect = target.getBoundingClientRect();
+      setTourCursor({
+        x: rect.left + 12,
+        y: rect.bottom - 8,
+      });
+    }
+
+    updateCursorPosition();
+    const intervalId = window.setInterval(updateCursorPosition, 220);
+    window.addEventListener('resize', updateCursorPosition);
+    window.addEventListener('scroll', updateCursorPosition, true);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('resize', updateCursorPosition);
+      window.removeEventListener('scroll', updateCursorPosition, true);
+    };
+  }, [tourActive, tourStep, intent, busy]);
 
   async function loadIntent() {
     if (!intentId) return;
@@ -118,6 +188,15 @@ function CheckoutContent() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function markTourCompleted(): void {
+    try {
+      window.localStorage.setItem(PRODUCT_TOUR_STORAGE_KEY, 'completed');
+    } catch {
+      // no-op
+    }
+    setTourActive(false);
   }
 
   if (!intentId) {
@@ -193,6 +272,7 @@ function CheckoutContent() {
             <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
               {intent.status !== 'settled' && intent.status !== 'delivered' && intent.status !== 'expired' && (
                 <button
+                  ref={payButtonRef}
                   onClick={() => void pay()}
                   disabled={busy}
                   style={{
@@ -203,13 +283,21 @@ function CheckoutContent() {
                     color: '#111827',
                     cursor: 'pointer',
                     fontWeight: 600,
+                    outline: tourActive && tourStep === 'pay_now' ? '1px solid #7dd3fc' : 'none',
+                    boxShadow: tourActive && tourStep === 'pay_now' ? '0 0 0 4px rgba(125, 211, 252, 0.25)' : 'none',
                   }}
                 >
                   {busy ? 'Processing...' : 'Pay Now'}
                 </button>
               )}
               <Link
+                ref={backLinkRef}
                 href="/merchant"
+                onClick={() => {
+                  if (tourActive && tourStep === 'back_to_merchant') {
+                    markTourCompleted();
+                  }
+                }}
                 style={{
                   border: `1px solid ${THEME.border}`,
                   borderRadius: 8,
@@ -217,6 +305,8 @@ function CheckoutContent() {
                   color: '#f8fafc',
                   textDecoration: 'none',
                   fontSize: '0.9rem',
+                  outline: tourActive && tourStep === 'back_to_merchant' ? '1px solid #7dd3fc' : 'none',
+                  boxShadow: tourActive && tourStep === 'back_to_merchant' ? '0 0 0 4px rgba(125, 211, 252, 0.25)' : 'none',
                 }}
               >
                 Back To Merchant
@@ -238,6 +328,76 @@ function CheckoutContent() {
           <p style={{ color: '#cbd5e1' }}>Intent not found.</p>
         )}
       </div>
+      {tourActive && (
+        <>
+          {tourCursor && (
+            <>
+              <div
+                style={{
+                  position: 'fixed',
+                  left: tourCursor.x,
+                  top: tourCursor.y,
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  background: '#7dd3fc',
+                  transform: 'translate(-8px, -8px)',
+                  pointerEvents: 'none',
+                  zIndex: 90,
+                  animation: 'productTourCursorDot 1.1s ease-in-out infinite alternate',
+                }}
+              />
+              <div
+                style={{
+                  position: 'fixed',
+                  left: tourCursor.x,
+                  top: tourCursor.y,
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  border: '2px solid rgba(125, 211, 252, 0.8)',
+                  transform: 'translate(-14px, -14px)',
+                  pointerEvents: 'none',
+                  zIndex: 89,
+                  animation: 'productTourCursorRing 1.1s ease-out infinite',
+                }}
+              />
+            </>
+          )}
+          <div
+            style={{
+              position: 'fixed',
+              right: 18,
+              bottom: 18,
+              width: 'min(340px, calc(100vw - 2rem))',
+              borderRadius: 10,
+              border: '1px solid #33506a',
+              background: 'rgba(12, 18, 24, 0.92)',
+              color: '#dbeafe',
+              padding: '0.8rem 0.9rem',
+              zIndex: 95,
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.35)',
+            }}
+          >
+            <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#93c5fd' }}>
+              Product Tour
+            </div>
+            <div style={{ fontSize: '0.86rem', marginTop: '0.35rem' }}>
+              {checkoutTourMessage(tourStep)}
+            </div>
+          </div>
+          <style jsx global>{`
+            @keyframes productTourCursorDot {
+              from { transform: translate(-8px, -8px) scale(1); }
+              to { transform: translate(-8px, -8px) scale(0.82); }
+            }
+            @keyframes productTourCursorRing {
+              from { transform: translate(-14px, -14px) scale(0.7); opacity: 0.95; }
+              to { transform: translate(-14px, -14px) scale(1.2); opacity: 0.15; }
+            }
+          `}</style>
+        </>
+      )}
     </main>
   );
 }
