@@ -264,10 +264,11 @@ const bridgeMeta = {
   description: 'Bridge tokens between chains.',
   examples: [
     'await money.bridge({ from: { chain: "fast", token: "SET" }, to: { chain: "ethereum" }, amount: 20, network: "testnet" })',
+    'await money.bridge({ from: { chain: "fast", token: "fastUSDC" }, to: { chain: "arbitrum" }, amount: 10, network: "testnet" })',
     'await money.bridge({ from: { chain: "ethereum", token: "WSET" }, to: { chain: "fast" }, amount: 5, network: "testnet" })',
     'await money.bridge({ from: { chain: "ethereum", token: "USDC" }, to: { chain: "base" }, amount: 100, network: "mainnet" })',
   ],
-  notes: 'DeBridge for mainnet EVM/Solana bridging. OmniSet for testnet Fast↔EVM (Ethereum Sepolia, Arbitrum Sepolia). ERC-20 approvals handled automatically.',
+  notes: 'DeBridge for mainnet EVM/Solana bridging. OmniSet for testnet Fast↔EVM (Ethereum Sepolia, Arbitrum Sepolia) including fastUSDC↔USDC on Arbitrum Sepolia. ERC-20 approvals handled automatically.',
 } as const;
 
 // ─── price ───────────────────────────────────────────────────────────────────

@@ -254,7 +254,22 @@ async function getAddressForChain(chainConfig: ChainConfig): Promise<string> {
  * Resolve a token symbol or raw address for use in swap/bridge.
  * Returns { address, decimals }.
  */
-function resolveSwapToken(token: string, chain: string): { address: string; decimals: number } {
+const FAST_TESTNET_USDC_TOKEN = '0x1e744900021182b293538bb6685b77df095e351364d550021614ce90c8ab9e0a';
+const ARBITRUM_SEPOLIA_USDC = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d';
+
+function resolveSwapToken(token: string, chain: string, network?: NetworkType): { address: string; decimals: number } {
+  const upper = token.toUpperCase();
+
+  // OmniSet testnet token overrides for symbol-based bridge flows
+  if (network === 'testnet') {
+    if (chain === 'fast' && (upper === 'USDC' || upper === 'FASTUSDC' || upper === 'SETUSDC')) {
+      return { address: FAST_TESTNET_USDC_TOKEN, decimals: 6 };
+    }
+    if (chain === 'arbitrum' && upper === 'USDC') {
+      return { address: ARBITRUM_SEPOLIA_USDC, decimals: 6 };
+    }
+  }
+
   // Try well-known resolution first
   const resolved = resolveTokenAddress(token, chain);
   if (resolved) return resolved;
@@ -270,7 +285,7 @@ function resolveSwapToken(token: string, chain: string): { address: string; deci
   // Unknown symbol — throw helpful error
   throw new MoneyError('TOKEN_NOT_FOUND', `Cannot resolve token "${token}" on chain "${chain}".`, {
     chain,
-    note: `Use a known symbol (USDC, USDT, WETH, WBTC, DAI) or pass a contract address directly.`,
+    note: `Use a known symbol (USDC, USDT, WETH, WBTC, DAI${chain === 'fast' ? ', fastUSDC' : ''}) or pass a contract address directly.`,
   });
 }
 
@@ -976,8 +991,8 @@ export const money = {
 
     const apiKey = config.apiKeys?.[provider.name];
 
-    const fromResolved = resolveSwapToken(from, chain);
-    const toResolved = resolveSwapToken(to, chain);
+    const fromResolved = resolveSwapToken(from, chain, resolvedNetwork);
+    const toResolved = resolveSwapToken(to, chain, resolvedNetwork);
 
     const fromRaw = toRaw(String(amount), fromResolved.decimals).toString();
 
@@ -1050,8 +1065,8 @@ export const money = {
 
     const apiKey = config.apiKeys?.[provider.name];
 
-    const fromResolved = resolveSwapToken(from, chain);
-    const toResolved = resolveSwapToken(to, chain);
+    const fromResolved = resolveSwapToken(from, chain, resolvedNetwork);
+    const toResolved = resolveSwapToken(to, chain, resolvedNetwork);
     const fromRaw = toRaw(String(amount), fromResolved.decimals).toString();
 
     // Get quote first
@@ -1261,11 +1276,11 @@ export const money = {
       receiverAddress = await getAddressForChain(dstResolved.chainConfig);
     }
 
-    const fromTokenResolved = resolveSwapToken(from.token, from.chain);
+    const fromTokenResolved = resolveSwapToken(from.token, from.chain, resolvedNetwork);
     const toToken = to.token ?? from.token;
     let toTokenResolved: { address: string; decimals: number };
     try {
-      toTokenResolved = resolveSwapToken(toToken, to.chain);
+      toTokenResolved = resolveSwapToken(toToken, to.chain, resolvedNetwork);
     } catch {
       // Destination token resolution may fail for cross-chain bridges (e.g., SET on Fast → WSET on EVM).
       // Try well-known token lookup before falling back to raw string.

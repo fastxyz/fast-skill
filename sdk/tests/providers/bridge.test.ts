@@ -190,4 +190,40 @@ describe('money.bridge', () => {
       },
     );
   });
+
+  it('resolves USDC token on arbitrum testnet (fails at chain config, not token resolution)', async () => {
+    // Ensures Arbitrum Sepolia USDC symbol resolves before chain setup checks.
+    await assert.rejects(
+      () => money.bridge({
+        from: { chain: 'arbitrum', token: 'USDC' },
+        to: { chain: 'fast' },
+        amount: 10,
+        network: 'testnet',
+      }),
+      (err: unknown) => {
+        assert.ok(err instanceof MoneyError);
+        assert.notEqual((err as MoneyError).code, 'TOKEN_NOT_FOUND');
+        assert.equal((err as MoneyError).code, 'CHAIN_NOT_CONFIGURED');
+        return true;
+      },
+    );
+  });
+
+  it('resolves fastUSDC token on fast testnet (fails at chain config, not token resolution)', async () => {
+    // Ensures fast-side fastUSDC alias resolves before chain setup checks.
+    await assert.rejects(
+      () => money.bridge({
+        from: { chain: 'fast', token: 'fastUSDC' },
+        to: { chain: 'arbitrum' },
+        amount: 10,
+        network: 'testnet',
+      }),
+      (err: unknown) => {
+        assert.ok(err instanceof MoneyError);
+        assert.notEqual((err as MoneyError).code, 'TOKEN_NOT_FOUND');
+        assert.equal((err as MoneyError).code, 'CHAIN_NOT_CONFIGURED');
+        return true;
+      },
+    );
+  });
 });

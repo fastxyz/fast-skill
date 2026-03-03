@@ -55,7 +55,7 @@ All EVM chains share one wallet key — same address everywhere.
 
 - **Send & receive** on all 13 chains (+ custom EVM chains)
 - **Token swaps** via Jupiter (Solana) and Paraswap (EVM) — mainnet
-- **Cross-chain bridging** via DeBridge (mainnet) and OmniSet (Fast<->EVM testnet)
+- **Cross-chain bridging** via DeBridge (mainnet) and OmniSet (Fast<->EVM testnet, including fastUSDC<->USDC on Arbitrum Sepolia)
 - **Price lookups** via DexScreener and FastSet RPC
 - **Token discovery** — `tokens()` returns on-chain balances + registered aliases
 - **Bridge auto-registration** — destination tokens are auto-registered after bridging

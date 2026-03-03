@@ -25,10 +25,12 @@ function base64ToBytes(b64: string): Uint8Array {
 /** FastSet token IDs */
 const WETH_FASTSET_TOKEN_ID = base64ToBytes('W6YWYjF5vVWnczFBJVAy+OEyh2ACG+lhZtO8FF8h5jo=');
 const SET_FASTSET_TOKEN_ID = base64ToBytes('+ldecAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+const FASTUSDC_FASTSET_TOKEN_ID = base64ToBytes('HnRJAAIRgrKTU4u2aFt33wleNRNk1VACFhTOkMirngo=');
 
 /** Hex representations of FastSet token IDs (used for matching resolved addresses) */
 const SET_FASTSET_TOKEN_HEX = 'fa575e7000000000000000000000000000000000000000000000000000000000';
 const WETH_FASTSET_TOKEN_HEX = '5ba616623179bd55a7733141255032f8e1328760021be96166d3bc145f21e63a';
+const FASTUSDC_FASTSET_TOKEN_HEX = '1e744900021182b293538bb6685b77df095e351364d550021614ce90c8ab9e0a';
 
 // ─── Chain configuration ──────────────────────────────────────────────────────
 
@@ -84,6 +86,8 @@ const CHAIN_TOKENS: Record<string, Record<string, OmnisetTokenInfo>> = {
     WETH: { evmAddress: '0x980b62da83eff3d4576c647993b0c1d7faf17c73', fastsetTokenId: WETH_FASTSET_TOKEN_ID, decimals: 18, isNative: false },
     WSET: { evmAddress: '0xA0431d49B71c6f07603272C6C580560AfF41598E', fastsetTokenId: SET_FASTSET_TOKEN_ID, decimals: 18, isNative: false },
     SET: { evmAddress: '0xA0431d49B71c6f07603272C6C580560AfF41598E', fastsetTokenId: SET_FASTSET_TOKEN_ID, decimals: 18, isNative: false },
+    USDC: { evmAddress: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d', fastsetTokenId: FASTUSDC_FASTSET_TOKEN_ID, decimals: 6, isNative: false },
+    FASTUSDC: { evmAddress: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d', fastsetTokenId: FASTUSDC_FASTSET_TOKEN_ID, decimals: 6, isNative: false },
   },
 };
 
@@ -92,9 +96,10 @@ const CHAIN_TOKENS: Record<string, Record<string, OmnisetTokenInfo>> = {
 /**
  * Resolve a token symbol or address to OmnisetTokenInfo for a given EVM chain.
  * Handles:
- *   - Symbols: ETH, WETH, WSET, SET (case-insensitive)
+ *   - Symbols: ETH, WETH, WSET, SET, USDC, FASTUSDC (case-insensitive)
  *   - Fast-side prefixed symbols: setWETH → WETH, setWSET → WSET
- *   - FastSet token ID hex (from resolveSwapToken): fa575e70... → SET, 5ba61662... → WETH
+ *   - Fast-side aliases: fastUSDC/setUSDC → USDC
+ *   - FastSet token ID hex (from resolveSwapToken): fa575e70... → SET, 5ba61662... → WETH, 1e7449... → USDC
  *   - Raw EVM addresses
  */
 function resolveOmnisetToken(token: string, evmChain: string): OmnisetTokenInfo | null {
@@ -115,6 +120,7 @@ function resolveOmnisetToken(token: string, evmChain: string): OmnisetTokenInfo 
   const clean = token.startsWith('0x') ? token.slice(2).toLowerCase() : token.toLowerCase();
   if (clean === SET_FASTSET_TOKEN_HEX) return chainTokens['SET'] ?? null;
   if (clean === WETH_FASTSET_TOKEN_HEX) return chainTokens['WETH'] ?? null;
+  if (clean === FASTUSDC_FASTSET_TOKEN_HEX) return chainTokens['USDC'] ?? chainTokens['FASTUSDC'] ?? null;
 
   // Try by EVM address
   for (const info of Object.values(chainTokens)) {
@@ -219,7 +225,7 @@ export const omnisetProvider: BridgeProvider = {
             `Cannot resolve token "${params.fromToken}" on OmniSet for chain "${params.fromChain}".`,
             {
               chain: params.fromChain,
-              note: `Supported tokens: ETH, WETH, WSET, SET.\n  Example: await money.bridge({ from: { chain: "ethereum", token: "ETH" }, to: { chain: "fast" }, amount: 0.01, network: "testnet" })`,
+              note: `Supported tokens: ETH, WETH, WSET, SET${params.fromChain === 'arbitrum' ? ', USDC' : ''}.\n  Example: await money.bridge({ from: { chain: "arbitrum", token: "USDC" }, to: { chain: "fast" }, amount: 10, network: "testnet" })`,
             },
           );
         }
@@ -347,7 +353,7 @@ export const omnisetProvider: BridgeProvider = {
           `Cannot resolve token "${params.fromToken}" on OmniSet for destination chain "${params.toChain}".`,
           {
             chain: params.toChain,
-            note: `Supported tokens: SET (→ WSET), setWETH (→ WETH), setWSET (→ WSET).\n  Example: await money.bridge({ from: { chain: "fast", token: "SET" }, to: { chain: "ethereum" }, amount: 20, network: "testnet" })`,
+            note: `Supported tokens: SET (→ WSET), setWETH (→ WETH), setWSET (→ WSET)${params.toChain === 'arbitrum' ? ', fastUSDC/setUSDC (→ USDC)' : ''}.\n  Example: await money.bridge({ from: { chain: "fast", token: "fastUSDC" }, to: { chain: "arbitrum" }, amount: 10, network: "testnet" })`,
           },
         );
       }
