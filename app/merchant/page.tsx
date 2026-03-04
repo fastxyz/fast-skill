@@ -143,9 +143,17 @@ export default function DemoPage() {
 
   useEffect(() => {
     try {
-      const completed = window.localStorage.getItem(PRODUCT_TOUR_STORAGE_KEY) === 'completed';
-      if (!completed) {
+      const params = new URLSearchParams(window.location.search);
+      const isTourRequested = params.get(PRODUCT_TOUR_QUERY_PARAM) === '1';
+      const storedValue = window.localStorage.getItem(PRODUCT_TOUR_STORAGE_KEY);
+      const completed = storedValue === 'completed';
+      const seen = storedValue === 'seen' || completed;
+
+      if (isTourRequested && !completed) {
         setTourActive(true);
+      } else if (!seen) {
+        setTourActive(true);
+        window.localStorage.setItem(PRODUCT_TOUR_STORAGE_KEY, 'seen');
       }
     } catch {
       setTourActive(false);
@@ -678,7 +686,7 @@ export default function DemoPage() {
             }}
           >
             <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#93c5fd' }}>
-              Product Tour
+              GET STARTED
             </div>
             <div style={{ fontSize: '0.86rem', marginTop: '0.35rem' }}>
               {tourMessage(tourStep)}
