@@ -8,7 +8,7 @@ description: >
   or any EVM chain.
   Use when asked to pay, transfer, request payment, create payment link, swap, bridge, check price, sign a message, fund a wallet, check a balance,
   or list available providers.
-  Do NOT use for yield farming, lending, staking, or detecting incoming payments.
+  Do NOT use for yield farming, lending, staking, or SDK-only incoming payment detection from arbitrary external senders.
 
 ---
 
@@ -145,9 +145,87 @@ Tracked locally in `~/.money/payment-links.csv`. Two directions: `created` (you 
 
 ---
 
+## Verified Paywall Flow (Server API)
+
+Use this when you need: **payment verified -> unlock protected data**.
+
+This flow is implemented as app API routes, not as `money.*` SDK methods.
+
+MVP constraints:
+- Chain/network/token allowlist is `base` + `mainnet` + Base USDC (`0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`).
+- Server must set `PAYWALL_UNLOCK_SECRET`.
+
+### 1. Create a paid product (merchant)
+
+```bash
+curl -sX POST {{HOST}}/api/paywall/products \
+  -H 'content-type: application/json' \
+  -d '{"title":"Premium data","amount":"5","description":"$5 USDC unlock"}'
+```
+
+### 2. Create a payment intent (buyer or agent)
+
+```bash
+curl -sX POST {{HOST}}/api/paywall/intents \
+  -H 'content-type: application/json' \
+  -d '{"productSlug":"premium-data"}'
+```
+
+Response includes:
+- `intent.receiverAddress`, `intent.requestedAmount`, `intent.tokenAddress`, `intent.chain`, `intent.network`
+- `statusUrl`, `unlockUrl`, `paymentRequestUrl`, `checkoutUrl`
+
+### 3. Pay on-chain (wallet or AI agent)
+
+```js
+await money.setup({ chain: "base", network: "mainnet" });
+await money.send({
+  to: intent.receiverAddress,
+  amount: intent.requestedAmount,
+  chain: "base",
+  token: intent.tokenAddress,
+  network: "mainnet",
+});
+```
+
+### 4. Poll until settled
+
+```bash
+curl -s {{HOST}}/api/paywall/intents/<intentId>/status
+```
+
+Wait for `intent.status === "settled"`.
+
+### 5. Request unlock token
+
+```bash
+curl -sX POST {{HOST}}/api/paywall/intents/<intentId>/unlock \
+  -H 'content-type: application/json' \
+  -d '{}'
+```
+
+### 6. Fetch protected data
+
+```bash
+curl -s {{HOST}}/api/paywall/data/<assetId> \
+  -H "Authorization: Bearer <unlockToken>"
+```
+
+Operational notes:
+- Status is verified server-side from chain transfer logs (with confirmations).
+- Unlock token TTL defaults to 10 minutes.
+- Unlock token is one-time use; first successful data fetch consumes it.
+
+---
+
 ## Receiving
 
-This skill cannot detect incoming payments. Use `money.createPaymentLink()` to create a payment request, or compare balance before/after as a proxy.
+SDK-only receiving still has no built-in incoming payment detection for arbitrary sender wallets.
+
+Use one of:
+1. `money.createPaymentLink()` for payment requests.
+2. Balance-before/balance-after checks as a proxy.
+3. The verified paywall server API above when you control the host backend and need settlement-gated unlock.
 
 ---
 
@@ -192,4 +270,4 @@ All EVM chains share the same wallet key — same address everywhere.
 
 ## NOT for this skill
 
-Stop. Tell the user this skill cannot help with: yield farming, lending, staking, or detecting incoming payments from external senders.
+Stop. Tell the user this skill cannot help with: yield farming, lending, staking, or SDK-only incoming payment detection from arbitrary external senders.
