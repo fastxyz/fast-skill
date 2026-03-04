@@ -20,16 +20,40 @@ import {
 
 let tmpDir: string;
 let tmpHomeSubDir: string; // A temp dir inside homedir for ~ expansion tests
+let tmpHomeDir: string; // Isolated HOME for this test file
+let originalHomeEnv: string | undefined;
+let originalUserProfileEnv: string | undefined;
 
 beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'money-keys-test-'));
-  // Create a temp dir inside homedir so we can use ~/... paths
+  tmpHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'money-home-test-'));
+
+  // Point homedir resolution at an isolated writable directory.
+  originalHomeEnv = process.env.HOME;
+  originalUserProfileEnv = process.env.USERPROFILE;
+  process.env.HOME = tmpHomeDir;
+  process.env.USERPROFILE = tmpHomeDir;
+
+  // Create a temp dir inside homedir so we can use ~/... paths.
   tmpHomeSubDir = await fs.mkdtemp(path.join(os.homedir(), '.money-keys-test-'));
 });
 
 afterEach(async () => {
   await fs.rm(tmpDir, { recursive: true, force: true });
+  await fs.rm(tmpHomeDir, { recursive: true, force: true });
   await fs.rm(tmpHomeSubDir, { recursive: true, force: true });
+
+  if (originalHomeEnv === undefined) {
+    delete process.env.HOME;
+  } else {
+    process.env.HOME = originalHomeEnv;
+  }
+
+  if (originalUserProfileEnv === undefined) {
+    delete process.env.USERPROFILE;
+  } else {
+    process.env.USERPROFILE = originalUserProfileEnv;
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -366,5 +390,4 @@ describe('withKey', () => {
     );
   });
 });
-
 
