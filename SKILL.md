@@ -247,6 +247,7 @@ Operational notes:
 - Optional postgres settings:
   - `PAYWALL_POSTGRES_STORE_KEY` to namespace a store row (default `default`).
   - `PAYWALL_DATABASE_SSL=require` for managed Postgres TLS.
+  - `PAYWALL_DATABASE_SSL_INSECURE_SKIP_VERIFY=true` only for local/dev cert bypass.
 - Unlock token TTL defaults to 10 minutes.
 - Unlock token is one-time use; first successful data fetch consumes it.
 

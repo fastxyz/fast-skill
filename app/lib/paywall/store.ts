@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { Pool } from 'pg';
+import { Pool, type PoolConfig } from 'pg';
 import type { PaywallReceiverAccountRecord, PaywallStoreData } from './types';
 
 const g = globalThis as typeof globalThis & {
@@ -123,12 +123,29 @@ function resolvePostgresUrl(): string {
   return url;
 }
 
+function shouldAllowInsecurePostgresTls(): boolean {
+  const value = process.env.PAYWALL_DATABASE_SSL_INSECURE_SKIP_VERIFY
+    ?.trim()
+    .toLowerCase();
+  return value === '1' || value === 'true' || value === 'yes';
+}
+
+function resolvePostgresSslConfig(): PoolConfig['ssl'] {
+  const sslMode = process.env.PAYWALL_DATABASE_SSL?.trim().toLowerCase();
+  if (sslMode !== 'require') {
+    return undefined;
+  }
+  if (shouldAllowInsecurePostgresTls()) {
+    return { rejectUnauthorized: false };
+  }
+  return { rejectUnauthorized: true };
+}
+
 function getPostgresPool(): Pool {
   if (!g.__moneyPaywallPgPool) {
-    const sslMode = process.env.PAYWALL_DATABASE_SSL?.trim().toLowerCase();
     g.__moneyPaywallPgPool = new Pool({
       connectionString: resolvePostgresUrl(),
-      ssl: sslMode === 'require' ? { rejectUnauthorized: false } : undefined,
+      ssl: resolvePostgresSslConfig(),
     });
   }
   return g.__moneyPaywallPgPool;
