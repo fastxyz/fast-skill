@@ -3,11 +3,11 @@ name: fast-api
 version: {{VERSION}}
 description: >
   Universal payment SDK for AI agents. Send tokens, check balances, create payment links, swap tokens, bridge cross-chain,
-  look up prices, sign messages, list providers, and register custom EVM chains across 13 chains
+  look up prices, sign messages, list providers, pay for x402-protected content, and register custom EVM chains across 13 chains
   (Fast, Base, Ethereum, Arbitrum, Polygon, Optimism, BSC, Avalanche, Fantom, zkSync, Linea, Scroll, Solana)
   or any EVM chain.
   Use when asked to pay, transfer, request payment, create payment link, swap, bridge, check price, sign a message, fund a wallet, check a balance,
-  or list available providers.
+  pay for x402 content, or list available providers.
   Do NOT use for yield farming, lending, staking, or SDK-only incoming payment detection from arbitrary external senders.
 
 ---
@@ -314,9 +314,9 @@ All EVM chains share the same wallet key — same address everywhere.
 
 ---
 
-## x402 Payments (FastSet)
+## x402 Payments
 
-Pay for x402-protected content on FastSet automatically. When a server returns HTTP 402 Payment Required with FastSet payment requirements, use `x402Pay()` to handle the entire flow:
+Pay for x402-protected content automatically. When a server returns HTTP 402 Payment Required, use `x402Pay()` to handle the entire flow. Supports both **FastSet** and **EVM** (Arbitrum, Base) networks.
 
 ```js
 // Simple GET request to a paid endpoint
@@ -332,24 +332,76 @@ const result = await money.x402Pay({
 });
 ```
 
-**How it works:**
-1. Makes initial request to the URL
-2. If 402 returned, parses payment requirements (amount, recipient, asset)
-3. Creates a TokenTransfer transaction on FastSet
-4. Signs and submits to get a transaction certificate
-5. Retries the request with `X-PAYMENT` header containing the certificate
-6. Returns the final response + payment details
+### Supported Networks
 
-**Requirements:**
-- Fast chain must be set up: `await money.setup({ chain: "fast" })`
-- Sufficient SETUSDC balance for the payment
-- Only `fastset-devnet` network is currently supported
+| Network | Payment Method | Settlement |
+|---------|---------------|------------|
+| `fastset-devnet` | FastSet TokenTransfer | Instant (on-chain when signed) |
+| `arbitrum-sepolia` | EIP-3009 transferWithAuthorization | Facilitator submits on-chain |
+| `base-sepolia` | EIP-3009 transferWithAuthorization | Facilitator submits on-chain |
 
-**Result includes:**
-- `success`: Whether the paid request succeeded
-- `statusCode`: HTTP status code of the final response
-- `body`: Response body (parsed as JSON if possible)
-- `payment`: Details of the payment made (network, amount, recipient, txHash)
+### How it works
+
+**FastSet flow:**
+1. Request URL → 402 returned with FastSet payment requirements
+2. Create TokenTransfer transaction, sign with Ed25519
+3. Submit to FastSet network, get transaction certificate
+4. Retry request with `X-PAYMENT` header containing certificate
+5. Server verifies certificate, delivers content
+
+**EVM flow (Arbitrum/Base):**
+1. Request URL → 402 returned with EVM payment requirements
+2. Check USDC balance on target chain
+3. If insufficient, **auto-bridge** SETUSDC → USDC from FastSet (see below)
+4. Sign EIP-3009 `transferWithAuthorization` message
+5. Retry request with `X-PAYMENT` header containing signature
+6. Facilitator verifies, then submits `transferWithAuthorization` on-chain
+7. After on-chain settlement confirmed, server delivers content
+
+### Auto-Bridge (EVM Payments)
+
+When paying on Arbitrum or Base and your EVM wallet has insufficient USDC, `x402Pay()` automatically:
+1. Checks your FastSet SETUSDC balance
+2. Bridges exactly the required amount via OmniSet
+3. Polls every 2 seconds until USDC arrives (up to 2 minutes)
+4. Proceeds with EIP-3009 payment
+
+```js
+// EVM payment with auto-bridge
+await money.setup({ chain: "fast" });     // Required for auto-bridge
+await money.setup({ chain: "arbitrum" }); // Target chain
+
+const result = await money.x402Pay({ url: "https://api.example.com/arbitrum-service" });
+// If buyer has 0 USDC but sufficient SETUSDC, bridges automatically
+// → { success: true, payment: { bridged: true, bridgeTxHash: "0x...", ... } }
+```
+
+### Requirements
+
+| Network | Setup Required | Token Needed |
+|---------|---------------|--------------|
+| FastSet | `money.setup({ chain: "fast" })` | SETUSDC |
+| Arbitrum | `money.setup({ chain: "arbitrum" })` + `money.setup({ chain: "fast" })` | USDC or SETUSDC (auto-bridges) |
+| Base | `money.setup({ chain: "base" })` + `money.setup({ chain: "fast" })` | USDC or SETUSDC (auto-bridges) |
+
+### Result Object
+
+```js
+{
+  success: true,              // Whether the paid request succeeded
+  statusCode: 200,            // HTTP status code of the final response
+  headers: { ... },           // Response headers
+  body: { ... },              // Response body (parsed as JSON if possible)
+  payment: {
+    network: "arbitrum-sepolia",
+    amount: "0.1",            // Human-readable amount
+    recipient: "0x...",       // Merchant address
+    txHash: "0x...",          // FastSet txHash or EIP-3009 signature prefix
+    bridged: true,            // Whether auto-bridge was used (EVM only)
+    bridgeTxHash: "0x..."     // Bridge transaction hash (if bridged)
+  },
+  note: "EVM payment of 0.1 USDC successful (auto-bridged). Content delivered."
+}
 
 ---
 
