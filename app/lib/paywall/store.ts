@@ -47,6 +47,19 @@ function sanitizeReceiverAccounts(
   return sanitized;
 }
 
+function sanitizeSeenMap(
+  input: unknown,
+): Record<string, true> {
+  const sanitized: Record<string, true> = {};
+  if (!input || typeof input !== 'object') return sanitized;
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    if (value === true) {
+      sanitized[key] = true;
+    }
+  }
+  return sanitized;
+}
+
 function defaultStore(): PaywallStoreData {
   return {
     version: 1,
@@ -58,6 +71,7 @@ function defaultStore(): PaywallStoreData {
     payment_events: {},
     unlock_grants: {},
     seen_transfers: {},
+    seen_webhook_events: {},
   };
 }
 
@@ -86,7 +100,8 @@ async function readFromDisk(): Promise<PaywallStoreData> {
     intents: parsed.intents ?? {},
     payment_events: parsed.payment_events ?? {},
     unlock_grants: parsed.unlock_grants ?? {},
-    seen_transfers: parsed.seen_transfers ?? {},
+    seen_transfers: sanitizeSeenMap(parsed.seen_transfers),
+    seen_webhook_events: sanitizeSeenMap(parsed.seen_webhook_events),
   };
 }
 

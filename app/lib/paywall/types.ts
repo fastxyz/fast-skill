@@ -103,6 +103,7 @@ export interface PaywallStoreData {
   payment_events: Record<string, PaywallPaymentEventRecord>;
   unlock_grants: Record<string, PaywallUnlockGrantRecord>;
   seen_transfers: Record<string, true>;
+  seen_webhook_events: Record<string, true>;
 }
 
 export interface PaywallProductView {

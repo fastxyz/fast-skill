@@ -196,6 +196,30 @@ curl -s {{HOST}}/api/paywall/intents/<intentId>/status
 
 Wait for `intent.status === "settled"` and stop on terminal non-success states (`"expired"` or `"failed"`).
 
+### Optional: provider webhook callback (signed)
+
+If you use an external provider to drive settlement/failure updates, POST a signed webhook:
+
+```bash
+curl -sX POST {{HOST}}/api/paywall/webhooks/<provider> \
+  -H "content-type: application/json" \
+  -H "x-paywall-signature: sha256=<hmac_hex>" \
+  -d '{"eventId":"evt_123","intentId":"intent_abc","status":"settled"}'
+```
+
+Signature input:
+- Secret: `PAYWALL_WEBHOOK_SECRET` (or provider override `PAYWALL_WEBHOOK_SECRET_<PROVIDER>`)
+- Digest: `hex(hmac_sha256(secret, raw_request_body))`
+- Optional anti-replay timestamp: send `x-paywall-timestamp: <unix_seconds>` and sign `<timestamp>.<raw_request_body>` instead of raw body.
+
+Supported webhook statuses:
+- `settled` (`paid`, `succeeded`, `completed` aliases)
+- `failed` (`failure`, `canceled`, `cancelled` aliases)
+- `expired`
+- `pending` (`processing` alias)
+
+Webhook ingestion is idempotent by `<provider>:<eventId>`.
+
 ### 5. Request unlock token
 
 ```bash
@@ -214,6 +238,7 @@ curl -s {{HOST}}/api/paywall/data/<assetId> \
 Operational notes:
 - Status is verified server-side from chain transfer logs (with confirmations).
 - Repeated verifier failures transition an intent to `failed` (threshold via `PAYWALL_MAX_VERIFIER_FAILURES`, default `3`).
+- Signed webhook ingestion route: `POST /api/paywall/webhooks/<provider>`.
 - Unlock token TTL defaults to 10 minutes.
 - Unlock token is one-time use; first successful data fetch consumes it.
 

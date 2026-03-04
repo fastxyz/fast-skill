@@ -25,6 +25,8 @@ import type {
 
 export const PAYWALL_BUYER_COOKIE = 'money_paywall_buyer_id';
 
+export type PaywallWebhookStatus = 'pending' | 'settled' | 'failed' | 'expired';
+
 const DEFAULT_INTENT_EXPIRY_MINUTES = 15;
 const DEFAULT_UNLOCK_TTL_SECONDS = (() => {
   const parsed = Number(process.env.PAYWALL_UNLOCK_TTL_SECONDS ?? '600');
@@ -208,6 +210,17 @@ function markIntentFailed(params: {
     kind: 'failed',
     details_json: JSON.stringify({ code, reason }),
   });
+}
+
+function parseRawAmountOrThrow(value: string): bigint {
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new PaywallError('INVALID_PARAMS', 'amountRaw must be a non-empty integer string.');
+  }
+  if (!/^\d+$/.test(normalized)) {
+    throw new PaywallError('INVALID_PARAMS', 'amountRaw must be an integer raw amount.');
+  }
+  return BigInt(normalized);
 }
 
 function buildApiUrl(baseUrl: string, pathname: string): string {
@@ -558,6 +571,174 @@ export async function getPaywallIntent(
   const store = await readPaywallStore();
   const intent = store.intents[intentId];
   return intent ? toIntentView(intent) : null;
+}
+
+export async function applyPaywallWebhookEvent(params: {
+  provider: string;
+  eventId: string;
+  intentId: string;
+  status: PaywallWebhookStatus;
+  amountRaw?: string;
+  txHash?: string;
+  reason?: string;
+  occurredAt?: string;
+}): Promise<{
+  matched: boolean;
+  duplicate: boolean;
+  intent?: PaywallIntentView;
+  message: string;
+}> {
+  const provider = params.provider.trim().toLowerCase();
+  if (!provider) {
+    throw new PaywallError('INVALID_PARAMS', 'provider is required.');
+  }
+  const eventId = params.eventId.trim();
+  if (!eventId) {
+    throw new PaywallError('INVALID_PARAMS', 'eventId is required.');
+  }
+  const intentId = params.intentId.trim();
+  if (!intentId) {
+    throw new PaywallError('INVALID_PARAMS', 'intentId is required.');
+  }
+
+  let occurredAt: string | undefined;
+  if (params.occurredAt?.trim()) {
+    const parsed = Date.parse(params.occurredAt.trim());
+    if (!Number.isFinite(parsed)) {
+      throw new PaywallError('INVALID_PARAMS', 'occurredAt must be an ISO datetime string.');
+    }
+    occurredAt = new Date(parsed).toISOString();
+  }
+
+  return mutatePaywallStore((store) => {
+    const dedupeKey = `${provider}:${eventId}`;
+    const existingIntent = store.intents[intentId];
+
+    if (store.seen_webhook_events[dedupeKey]) {
+      return {
+        matched: Boolean(existingIntent),
+        duplicate: true,
+        intent: existingIntent ? toIntentView(existingIntent) : undefined,
+        message: `Duplicate webhook event "${dedupeKey}" ignored.`,
+      };
+    }
+
+    const intent = store.intents[intentId];
+    if (!intent) {
+      return {
+        matched: false,
+        duplicate: false,
+        message: `No paywall intent found for ${intentId}.`,
+      };
+    }
+    store.seen_webhook_events[dedupeKey] = true;
+
+    const eventDetailsJson = JSON.stringify({
+      source: 'webhook',
+      provider,
+      event_id: eventId,
+      status: params.status,
+      ...(params.txHash?.trim() ? { tx_hash: params.txHash.trim() } : {}),
+      ...(params.reason?.trim() ? { reason: params.reason.trim() } : {}),
+      ...(occurredAt ? { occurred_at: occurredAt } : {}),
+    });
+
+    if (
+      intent.status === 'settled'
+      || intent.status === 'failed'
+      || intent.status === 'expired'
+      || intent.status === 'delivered'
+    ) {
+      return {
+        matched: true,
+        duplicate: false,
+        intent: toIntentView(intent),
+        message: `Intent ${intent.intent_id} already ${intent.status}; webhook recorded with no state change.`,
+      };
+    }
+
+    if (params.status === 'pending') {
+      return {
+        matched: true,
+        duplicate: false,
+        intent: toIntentView(intent),
+        message: `Webhook event acknowledged for pending intent ${intent.intent_id}.`,
+      };
+    }
+
+    if (params.status === 'expired') {
+      if (intent.status === 'pending_payment') {
+        intent.status = 'expired';
+        pushEvent(store.payment_events, {
+          intent_id: intent.intent_id,
+          kind: 'expired',
+          details_json: eventDetailsJson,
+        });
+      }
+      return {
+        matched: true,
+        duplicate: false,
+        intent: toIntentView(intent),
+        message: `Applied expired webhook status to intent ${intent.intent_id}.`,
+      };
+    }
+
+    if (params.status === 'failed') {
+      const reason = params.reason?.trim()
+        || `Provider ${provider} reported failed for webhook event ${eventId}.`;
+      markIntentFailed({
+        events: store.payment_events,
+        intent,
+        reason,
+        code: 'WEBHOOK_FAILED',
+      });
+      return {
+        matched: true,
+        duplicate: false,
+        intent: toIntentView(intent),
+        message: `Applied failed webhook status to intent ${intent.intent_id}.`,
+      };
+    }
+
+    if (intent.status !== 'pending_payment') {
+      return {
+        matched: true,
+        duplicate: false,
+        intent: toIntentView(intent),
+        message: `Intent ${intent.intent_id} is ${intent.status}; settlement webhook did not change status.`,
+      };
+    }
+
+    const requestedRaw = BigInt(intent.requested_amount_raw);
+    let paidRaw = BigInt(intent.paid_amount_raw);
+    if (params.amountRaw !== undefined) {
+      const webhookRaw = parseRawAmountOrThrow(params.amountRaw);
+      if (webhookRaw > paidRaw) {
+        paidRaw = webhookRaw;
+      }
+    }
+    if (paidRaw < requestedRaw) {
+      paidRaw = requestedRaw;
+    }
+    intent.paid_amount_raw = paidRaw.toString();
+    intent.status = 'settled';
+    intent.settled_at = nowIso();
+    intent.verifier_error_count = 0;
+    intent.last_verifier_error_at = undefined;
+    pushEvent(store.payment_events, {
+      intent_id: intent.intent_id,
+      kind: 'settled',
+      amount_raw: intent.paid_amount_raw,
+      details_json: eventDetailsJson,
+    });
+
+    return {
+      matched: true,
+      duplicate: false,
+      intent: toIntentView(intent),
+      message: `Applied settled webhook status to intent ${intent.intent_id}.`,
+    };
+  });
 }
 
 export async function refreshPaywallIntentStatus(
