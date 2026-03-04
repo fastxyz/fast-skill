@@ -13,7 +13,6 @@ type StoreDriver = 'file' | 'postgres';
 
 const POSTGRES_TABLE = 'money_paywall_store';
 const POSTGRES_STORE_KEY = process.env.PAYWALL_POSTGRES_STORE_KEY?.trim() || 'default';
-const POSTGRES_LOCK_ID = '812947563281447303';
 const STORE_DRIVER = resolveStoreDriver();
 
 function resolveStoreDriver(): StoreDriver {
@@ -123,11 +122,37 @@ function resolvePostgresUrl(): string {
   return url;
 }
 
+function parseOptionalEnvBoolean(value: string | undefined): boolean | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
+}
+
 function shouldAllowInsecurePostgresTls(): boolean {
-  const value = process.env.PAYWALL_DATABASE_SSL_INSECURE_SKIP_VERIFY
-    ?.trim()
-    .toLowerCase();
-  return value === '1' || value === 'true' || value === 'yes';
+  return parseOptionalEnvBoolean(process.env.PAYWALL_DATABASE_SSL_INSECURE_SKIP_VERIFY) === true;
+}
+
+function shouldAllowRuntimePostgresDdl(): boolean {
+  const explicit = parseOptionalEnvBoolean(process.env.PAYWALL_ALLOW_RUNTIME_DDL);
+  if (explicit !== undefined) {
+    return explicit;
+  }
+  return process.env.NODE_ENV?.trim().toLowerCase() !== 'production';
+}
+
+async function ensurePostgresTableExists(pool: Pool): Promise<void> {
+  const result = await pool.query<{ exists: boolean }>(
+    'SELECT to_regclass($1) IS NOT NULL AS exists;',
+    [POSTGRES_TABLE],
+  );
+  if (result.rows[0]?.exists) {
+    return;
+  }
+  throw new Error(
+    `Paywall Postgres table "${POSTGRES_TABLE}" does not exist and runtime DDL is disabled. ` +
+      'Run database migrations to create this table or set PAYWALL_ALLOW_RUNTIME_DDL=true during initialization.',
+  );
 }
 
 function resolvePostgresSslConfig(): PoolConfig['ssl'] {
@@ -155,13 +180,17 @@ async function ensurePostgresStoreReady(): Promise<void> {
   if (!g.__moneyPaywallPgInitPromise) {
     g.__moneyPaywallPgInitPromise = (async () => {
       const pool = getPostgresPool();
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS ${POSTGRES_TABLE} (
-          store_key text PRIMARY KEY,
-          store_data jsonb NOT NULL,
-          updated_at timestamptz NOT NULL DEFAULT now()
-        );
-      `);
+      if (shouldAllowRuntimePostgresDdl()) {
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS ${POSTGRES_TABLE} (
+            store_key text PRIMARY KEY,
+            store_data jsonb NOT NULL,
+            updated_at timestamptz NOT NULL DEFAULT now()
+          );
+        `);
+      } else {
+        await ensurePostgresTableExists(pool);
+      }
       await pool.query(
         `
           INSERT INTO ${POSTGRES_TABLE} (store_key, store_data)
@@ -240,7 +269,14 @@ async function mutatePostgresStore<T>(
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query('SELECT pg_advisory_xact_lock($1::bigint);', [POSTGRES_LOCK_ID]);
+    await client.query(
+      `
+        INSERT INTO ${POSTGRES_TABLE} (store_key, store_data)
+        VALUES ($1, $2::jsonb)
+        ON CONFLICT (store_key) DO NOTHING;
+      `,
+      [POSTGRES_STORE_KEY, JSON.stringify(defaultStore())],
+    );
     const readResult = await client.query<{ store_data: unknown }>(
       `
         SELECT store_data

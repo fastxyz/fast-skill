@@ -176,6 +176,7 @@ The paywall server API under `app/api/paywall/*` supports two state backends:
 - `PAYWALL_STORE_DRIVER=postgres`: durable production storage.
   - Requires `PAYWALL_DATABASE_URL` (or `DATABASE_URL`).
   - Optional: `PAYWALL_POSTGRES_STORE_KEY` (default `default`), `PAYWALL_DATABASE_SSL=require`.
+  - Runtime DDL: `PAYWALL_ALLOW_RUNTIME_DDL=true|false` (default: enabled outside production, disabled in `NODE_ENV=production`).
   - Dev-only insecure TLS override: `PAYWALL_DATABASE_SSL_INSECURE_SKIP_VERIFY=true` (not for production).
 
 ## Architecture
