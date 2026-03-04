@@ -277,7 +277,7 @@ export function createFastAdapter(rpcUrl: string, network: string = 'testnet'): 
 
       const result = (await rpcCall(rpcUrl, 'proxy_getAccountInfo', {
         address: pubkey,
-        token_balances_filter: null,
+        token_balances_filter: [],
         state_key_filter: null,
         certificate_by_nonce: null,
       })) as {
@@ -334,7 +334,7 @@ export function createFastAdapter(rpcUrl: string, network: string = 'testnet'): 
             // Get nonce from account info
             const accountInfo = (await rpcCall(rpcUrl, 'proxy_getAccountInfo', {
               address: senderPubkey,
-              token_balances_filter: null,
+              token_balances_filter: [],
               state_key_filter: null,
               certificate_by_nonce: null,
             })) as { next_nonce: number } | null;
@@ -636,7 +636,7 @@ export function createFastTxExecutor(
       return await withKey<FastTransferResult>(keyfilePath, async (keypair) => {
         const accountInfo = (await rpcCall(rpcUrl, 'proxy_getAccountInfo', {
           address: senderPubkey,
-          token_balances_filter: null,
+          token_balances_filter: [],
           state_key_filter: null,
           certificate_by_nonce: null,
         })) as { next_nonce: number } | null;
@@ -693,7 +693,7 @@ export function createFastTxExecutor(
       return await withKey<FastTransferResult>(keyfilePath, async (keypair) => {
         const accountInfo = (await rpcCall(rpcUrl, 'proxy_getAccountInfo', {
           address: senderPubkey,
-          token_balances_filter: null,
+          token_balances_filter: [],
           state_key_filter: null,
           certificate_by_nonce: null,
         })) as { next_nonce: number } | null;

@@ -66522,9 +66522,12 @@ var ClaimTypeBcs = bcs.enum("ClaimType", {
   TokenCreation: TokenCreationBcs,
   TokenManagement: TokenManagementBcs,
   Mint: MintBcs,
+  Burn: bcs.struct("Burn", { token_id: bcs.bytes(32), amount: AmountBcs }),
+  // CRITICAL: Must be at index 4
   StateInitialization: bcs.struct("StateInitialization", { dummy: bcs.u8() }),
   StateUpdate: bcs.struct("StateUpdate", { dummy: bcs.u8() }),
   ExternalClaim: ExternalClaimFullBcs,
+  // Now at correct index 7
   StateReset: bcs.struct("StateReset", { dummy: bcs.u8() }),
   JoinCommittee: bcs.struct("JoinCommittee", { dummy: bcs.u8() }),
   LeaveCommittee: bcs.struct("LeaveCommittee", { dummy: bcs.u8() }),
@@ -66647,7 +66650,7 @@ function createFastAdapter(rpcUrl, network = "testnet") {
       }
       const result = await rpcCall(rpcUrl, "proxy_getAccountInfo", {
         address: pubkey,
-        token_balances_filter: null,
+        token_balances_filter: [],
         state_key_filter: null,
         certificate_by_nonce: null
       });
@@ -66683,7 +66686,7 @@ function createFastAdapter(rpcUrl, network = "testnet") {
         return await withKey(params.keyfile, async (keypair) => {
           const accountInfo = await rpcCall(rpcUrl, "proxy_getAccountInfo", {
             address: senderPubkey,
-            token_balances_filter: null,
+            token_balances_filter: [],
             state_key_filter: null,
             certificate_by_nonce: null
           });
@@ -66891,7 +66894,7 @@ function createFastTxExecutor(keyfilePath, rpcUrl, senderAddress) {
       return await withKey(keyfilePath, async (keypair) => {
         const accountInfo = await rpcCall(rpcUrl, "proxy_getAccountInfo", {
           address: senderPubkey,
-          token_balances_filter: null,
+          token_balances_filter: [],
           state_key_filter: null,
           certificate_by_nonce: null
         });
@@ -66937,7 +66940,7 @@ function createFastTxExecutor(keyfilePath, rpcUrl, senderAddress) {
       return await withKey(keyfilePath, async (keypair) => {
         const accountInfo = await rpcCall(rpcUrl, "proxy_getAccountInfo", {
           address: senderPubkey,
-          token_balances_filter: null,
+          token_balances_filter: [],
           state_key_filter: null,
           certificate_by_nonce: null
         });
@@ -68600,6 +68603,14 @@ var WELL_KNOWN_TOKENS = [
       ethereum: "0x485DdBAa2D62ee70D03B4789912948f3aF7E35B8",
       arbitrum: "0xA0431d49B71c6f07603272C6C580560AfF41598E"
     }
+  },
+  {
+    symbol: "SETUSDC",
+    decimals: 6,
+    addresses: {
+      fast: "0x1e744900021182b293538bb6685b77df095e351364d550021614ce90c8ab9e0a",
+      arbitrum: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+    }
   }
 ];
 var NATIVE_TOKEN_ADDRESS = {
@@ -69210,26 +69221,36 @@ var ZERO_ADDRESS2 = "0x0000000000000000000000000000000000000000";
 function base64ToBytes(b64) {
   return new Uint8Array(Buffer.from(b64, "base64"));
 }
+function hexToUint8Array(hex3) {
+  const clean2 = hex3.startsWith("0x") ? hex3.slice(2) : hex3;
+  const bytes = new Uint8Array(clean2.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(clean2.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
 var WETH_FASTSET_TOKEN_ID = base64ToBytes("W6YWYjF5vVWnczFBJVAy+OEyh2ACG+lhZtO8FF8h5jo=");
 var SET_FASTSET_TOKEN_ID = base64ToBytes("+ldecAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+var USDC_FASTSET_TOKEN_ID = hexToUint8Array("1e744900021182b293538bb6685b77df095e351364d550021614ce90c8ab9e0a");
 var SET_FASTSET_TOKEN_HEX = "fa575e7000000000000000000000000000000000000000000000000000000000";
 var WETH_FASTSET_TOKEN_HEX = "5ba616623179bd55a7733141255032f8e1328760021be96166d3bc145f21e63a";
+var USDC_FASTSET_TOKEN_HEX = "1e744900021182b293538bb6685b77df095e351364d550021614ce90c8ab9e0a";
 var CHAIN_CONFIGS = {
   ethereum: {
     chainId: 11155111,
-    bridgeContract: "0xaBe4A90B23738EE0d56425825cF20C63C578e75a",
+    bridgeContract: "0x38b48764f6B12e1Dd5e4f8391d06d34Ba3920201",
     wsetAddress: "0x485DdBAa2D62ee70D03B4789912948f3aF7E35B8",
     wethAddress: "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
-    fastsetBridgeAddress: "set1la44katfwdhv9tqvskjrjc5cmy7ufjwvufwz4suuvazua5dtf4js08rgrz",
-    relayerUrl: "https://omniset.fastset.xyz/ethereum-sepolia-relayer/relay"
+    fastsetBridgeAddress: "fast19cjwajufyuqv883ydlvrp8xrhxejuvfe40pxq5dsrv675zgh89sqg9txs8",
+    relayerUrl: "https://staging.omniset.fastset.xyz/ethereum-sepolia-relayer/relay"
   },
   arbitrum: {
     chainId: 421614,
-    bridgeContract: "0x485DdBAa2D62ee70D03B4789912948f3aF7E35B8",
+    bridgeContract: "0xBb9111E62c9EE364cF6dc676d754602a2E259bd3",
     wsetAddress: "0xA0431d49B71c6f07603272C6C580560AfF41598E",
     wethAddress: "0x980b62da83eff3d4576c647993b0c1d7faf17c73",
-    fastsetBridgeAddress: "set1la4pjzupsdwwgx3vu0fvvl6hk4ts3psg2d4g3mlq5yxwqhdjl03sp7ek2u",
-    relayerUrl: "https://omniset.fastset.xyz/arbitrum-sepolia-relayer/relay"
+    fastsetBridgeAddress: "fast1pz07pdlspsydyt2g79yeshunhfyjsr5j4ahuyfv8hpdn00ks8u6q8axf9t",
+    relayerUrl: "https://staging.omniset.fastset.xyz/arbitrum-sepolia-relayer/relay"
   }
 };
 var CHAIN_TOKENS = {
@@ -69243,7 +69264,9 @@ var CHAIN_TOKENS = {
     ETH: { evmAddress: ZERO_ADDRESS2, fastsetTokenId: WETH_FASTSET_TOKEN_ID, decimals: 18, isNative: true },
     WETH: { evmAddress: "0x980b62da83eff3d4576c647993b0c1d7faf17c73", fastsetTokenId: WETH_FASTSET_TOKEN_ID, decimals: 18, isNative: false },
     WSET: { evmAddress: "0xA0431d49B71c6f07603272C6C580560AfF41598E", fastsetTokenId: SET_FASTSET_TOKEN_ID, decimals: 18, isNative: false },
-    SET: { evmAddress: "0xA0431d49B71c6f07603272C6C580560AfF41598E", fastsetTokenId: SET_FASTSET_TOKEN_ID, decimals: 18, isNative: false }
+    SET: { evmAddress: "0xA0431d49B71c6f07603272C6C580560AfF41598E", fastsetTokenId: SET_FASTSET_TOKEN_ID, decimals: 18, isNative: false },
+    USDC: { evmAddress: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d", fastsetTokenId: USDC_FASTSET_TOKEN_ID, decimals: 6, isNative: false },
+    SETUSDC: { evmAddress: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d", fastsetTokenId: USDC_FASTSET_TOKEN_ID, decimals: 6, isNative: false }
   }
 };
 function resolveOmnisetToken(token, evmChain) {
@@ -69263,6 +69286,8 @@ function resolveOmnisetToken(token, evmChain) {
     return chainTokens["SET"] ?? null;
   if (clean2 === WETH_FASTSET_TOKEN_HEX)
     return chainTokens["WETH"] ?? null;
+  if (clean2 === USDC_FASTSET_TOKEN_HEX)
+    return chainTokens["USDC"] ?? null;
   for (const info of Object.values(chainTokens)) {
     if (info.evmAddress.toLowerCase() === token.toLowerCase())
       return info;
@@ -69274,13 +69299,38 @@ function fastAddressToBytes32(address) {
   const bytes = new Uint8Array(import_bech322.bech32m.fromWords(words));
   return `0x${Buffer.from(bytes).toString("hex")}`;
 }
-function hexToUint8Array(hex3) {
-  const clean2 = hex3.startsWith("0x") ? hex3.slice(2) : hex3;
-  const bytes = new Uint8Array(clean2.length / 2);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(clean2.slice(i * 2, i * 2 + 2), 16);
+var CROSS_SIGN_URL = "https://staging.omniset.fastset.xyz/cross-sign";
+async function crossSignCertificate(certificate) {
+  const res = await fetch(CROSS_SIGN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "crossSign_evmSignCertificate",
+      params: { certificate }
+    })
+  });
+  if (!res.ok) {
+    throw new MoneyError("TX_FAILED", `Cross-sign request failed: ${res.status}`, {
+      chain: "fast",
+      note: "The OmniSet cross-sign service is unavailable."
+    });
   }
-  return bytes;
+  const json2 = await res.json();
+  if (json2.error) {
+    throw new MoneyError("TX_FAILED", `Cross-sign error: ${json2.error.message}`, {
+      chain: "fast",
+      note: "The OmniSet cross-sign service rejected the certificate."
+    });
+  }
+  if (!json2.result?.transaction || !json2.result?.signature) {
+    throw new MoneyError("TX_FAILED", "Cross-sign returned invalid response", {
+      chain: "fast",
+      note: "The OmniSet cross-sign service returned an unexpected response format."
+    });
+  }
+  return json2.result;
 }
 var BRIDGE_DEPOSIT_ABI = [{
   type: "function",
@@ -69327,7 +69377,7 @@ var omnisetProvider = {
         if (!tokenInfo2) {
           throw new MoneyError("TOKEN_NOT_FOUND", `Cannot resolve token "${params.fromToken}" on OmniSet for chain "${params.fromChain}".`, {
             chain: params.fromChain,
-            note: `Supported tokens: ETH, WETH, WSET, SET.
+            note: `Supported tokens: ETH, WETH, WSET, SET, USDC (arbitrum only).
   Example: await money.bridge({ from: { chain: "ethereum", token: "ETH" }, to: { chain: "fast" }, amount: 0.01, network: "testnet" })`
           });
         }
@@ -69408,24 +69458,24 @@ var omnisetProvider = {
       if (!tokenInfo) {
         throw new MoneyError("TOKEN_NOT_FOUND", `Cannot resolve token "${params.fromToken}" on OmniSet for destination chain "${params.toChain}".`, {
           chain: params.toChain,
-          note: `Supported tokens: SET (\u2192 WSET), setWETH (\u2192 WETH), setWSET (\u2192 WSET).
-  Example: await money.bridge({ from: { chain: "fast", token: "SET" }, to: { chain: "ethereum" }, amount: 20, network: "testnet" })`
+          note: `Supported tokens: SET (\u2192 WSET), setWETH (\u2192 WETH), setWSET (\u2192 WSET), SETUSDC (\u2192 USDC, arbitrum only).
+  Example: await money.bridge({ from: { chain: "fast", token: "SETUSDC" }, to: { chain: "arbitrum" }, amount: 0.1, network: "testnet" })`
         });
       }
       const evmTokenAddress = tokenInfo.isNative ? chainConfig2.wethAddress : tokenInfo.evmAddress;
       const transferResult = await params.fastExecutor.sendTokenTransfer(chainConfig2.fastsetBridgeAddress, params.amount, tokenInfo.fastsetTokenId);
-      const transferCrossSign = await params.fastExecutor.evmSignCertificate(transferResult.certificate);
-      const transferClaimHash = hashMessage({
-        raw: new Uint8Array(transferCrossSign.transaction)
-      });
+      const transferCrossSign = await crossSignCertificate(transferResult.certificate);
+      const transferFastTxId = transferResult.txHash;
       const dynamicTransferPayload = encodeAbiParameters([{ type: "address" }, { type: "address" }], [
         evmTokenAddress,
         params.receiverAddress
       ]);
+      const deadline = BigInt(Math.floor(Date.now() / 1e3) + 3600);
       const intentClaimEncoded = encodeAbiParameters([{
         type: "tuple",
         components: [
-          { name: "transferClaimHash", type: "bytes32" },
+          { name: "transferFastTxId", type: "bytes32" },
+          { name: "deadline", type: "uint256" },
           {
             name: "intents",
             type: "tuple[]",
@@ -69437,7 +69487,8 @@ var omnisetProvider = {
           }
         ]
       }], [{
-        transferClaimHash,
+        transferFastTxId,
+        deadline,
         intents: [{
           action: 1,
           // DynamicTransfer
@@ -69447,7 +69498,7 @@ var omnisetProvider = {
       }]);
       const intentBytes = hexToUint8Array(intentClaimEncoded);
       const intentResult = await params.fastExecutor.submitExternalClaim(params.fastExecutor.getAddress(), intentBytes);
-      const intentCrossSign = await params.fastExecutor.evmSignCertificate(intentResult.certificate);
+      const intentCrossSign = await crossSignCertificate(intentResult.certificate);
       const relayerBody = {
         encoded_transfer_claim: Array.from(new Uint8Array(transferCrossSign.transaction.map(Number))),
         transfer_proof: transferCrossSign.signature,
@@ -69473,7 +69524,7 @@ var omnisetProvider = {
       }
       return {
         txHash: transferResult.txHash,
-        orderId: transferClaimHash,
+        orderId: transferFastTxId,
         estimatedTime: "1-5 minutes"
       };
     } catch (err3) {
@@ -85007,12 +85058,14 @@ Track status: await money.listPaymentLinks({ payment_id: "${payment_id}" })`
   },
   // ─── x402 payment ───────────────────────────────────────────────────────────
   /**
-   * Pay for x402-protected content on FastSet.
+   * Pay for x402-protected content on FastSet or EVM networks.
    * Automatically handles 402 Payment Required responses by:
    * 1. Making initial request to get payment requirements
-   * 2. Creating and signing a TokenTransfer transaction on FastSet
-   * 3. Submitting the transaction to get a certificate
-   * 4. Retrying the request with X-PAYMENT header
+   * 2. Creating and signing payment (TokenTransfer on FastSet, EIP-3009 on EVM)
+   * 3. Retrying the request with X-PAYMENT header
+   *
+   * For EVM networks (arbitrum-sepolia, base-sepolia), uses EIP-3009 transferWithAuthorization.
+   * For FastSet networks, uses TokenTransfer with transaction certificate.
    */
   async x402Pay(params) {
     const { url: url2, method = "GET", headers: customHeaders = {}, body: requestBody } = params;
@@ -85022,21 +85075,21 @@ Track status: await money.listPaymentLinks({ payment_id: "${payment_id}" })`
       body: requestBody
     });
     if (initialRes.status !== 402) {
-      const resHeaders2 = {};
+      const resHeaders = {};
       initialRes.headers.forEach((v, k) => {
-        resHeaders2[k] = v;
+        resHeaders[k] = v;
       });
-      let resBody2;
+      let resBody;
       try {
-        resBody2 = await initialRes.json();
+        resBody = await initialRes.json();
       } catch {
-        resBody2 = await initialRes.text();
+        resBody = await initialRes.text();
       }
       return {
         success: initialRes.ok,
         statusCode: initialRes.status,
-        headers: resHeaders2,
-        body: resBody2,
+        headers: resHeaders,
+        body: resBody,
         note: initialRes.ok ? "Request succeeded without payment." : `Request failed with status ${initialRes.status}.`
       };
     }
@@ -85046,12 +85099,24 @@ Track status: await money.listPaymentLinks({ payment_id: "${payment_id}" })`
         note: "The server returned 402 but did not include payment requirements."
       });
     }
-    const fastsetReq = paymentRequired.accepts.find((r) => r.network === "fastset-devnet" || r.network === "fastset-mainnet" || r.network === "fast");
-    if (!fastsetReq) {
-      throw new MoneyError("UNSUPPORTED_OPERATION", "No FastSet payment option available", {
-        note: `Available networks: ${paymentRequired.accepts.map((r) => r.network).join(", ")}. Only FastSet is supported.`
+    const FASTSET_NETWORKS = ["fastset-devnet", "fastset-mainnet", "fast"];
+    const EVM_NETWORKS = ["arbitrum-sepolia", "arbitrum", "base-sepolia", "base"];
+    const fastsetReq = paymentRequired.accepts.find((r) => FASTSET_NETWORKS.includes(r.network));
+    const evmReq = paymentRequired.accepts.find((r) => EVM_NETWORKS.includes(r.network));
+    if (fastsetReq) {
+      return this._x402PayFastSet(url2, method, customHeaders, requestBody, paymentRequired, fastsetReq);
+    } else if (evmReq) {
+      return this._x402PayEvm(url2, method, customHeaders, requestBody, paymentRequired, evmReq);
+    } else {
+      throw new MoneyError("UNSUPPORTED_OPERATION", "No supported payment network available", {
+        note: `Available networks: ${paymentRequired.accepts.map((r) => r.network).join(", ")}. Supported: FastSet (fastset-devnet, fastset-mainnet) and EVM (arbitrum-sepolia, base-sepolia).`
       });
     }
+  },
+  /**
+   * Internal: FastSet payment path for x402
+   */
+  async _x402PayFastSet(url2, method, customHeaders, requestBody, paymentRequired, fastsetReq) {
     const config2 = await loadConfig();
     const fastKey = configKey("fast", "testnet");
     const fastConfig = config2.chains[fastKey];
@@ -85088,10 +85153,7 @@ Track status: await money.listPaymentLinks({ payment_id: "${payment_id}" })`
     const payloadBase64 = Buffer.from(JSON.stringify(paymentPayload)).toString("base64");
     const paidRes = await fetch(url2, {
       method,
-      headers: {
-        ...customHeaders,
-        "X-PAYMENT": payloadBase64
-      },
+      headers: { ...customHeaders, "X-PAYMENT": payloadBase64 },
       body: requestBody
     });
     const resHeaders = {};
@@ -85112,13 +85174,222 @@ Track status: await money.listPaymentLinks({ payment_id: "${payment_id}" })`
       statusCode: paidRes.status,
       headers: resHeaders,
       body: resBody,
-      payment: {
-        network: fastsetReq.network,
-        amount: amountHuman,
-        recipient: fastsetReq.payTo,
-        txHash
-      },
+      payment: { network: fastsetReq.network, amount: amountHuman, recipient: fastsetReq.payTo, txHash },
       note: paidRes.ok ? `Payment of ${amountHuman} USDC successful. Content delivered.` : `Payment submitted (tx: ${txHash}) but server returned ${paidRes.status}.`
+    };
+  },
+  /**
+   * Internal: EVM payment path for x402 using EIP-3009 transferWithAuthorization
+   */
+  async _x402PayEvm(url2, method, customHeaders, requestBody, paymentRequired, evmReq) {
+    const networkToChain = {
+      "arbitrum-sepolia": { chain: "arbitrum", network: "testnet", chainId: 421614 },
+      "arbitrum": { chain: "arbitrum", network: "mainnet", chainId: 42161 },
+      "base-sepolia": { chain: "base", network: "testnet", chainId: 84532 },
+      "base": { chain: "base", network: "mainnet", chainId: 8453 }
+    };
+    const chainInfo = networkToChain[evmReq.network];
+    if (!chainInfo) {
+      throw new MoneyError("UNSUPPORTED_OPERATION", `Unsupported EVM network: ${evmReq.network}`, {
+        note: `Supported EVM networks: ${Object.keys(networkToChain).join(", ")}`
+      });
+    }
+    const config2 = await loadConfig();
+    const evmKey = configKey(chainInfo.chain, chainInfo.network);
+    let evmConfig = config2.chains[evmKey];
+    if (!evmConfig) {
+      const evmKeyfilePath = expandHome("~/.money/keys/evm.json");
+      const fs5 = await import("fs/promises");
+      try {
+        await fs5.access(evmKeyfilePath);
+        await this.setup({ chain: chainInfo.chain, network: chainInfo.network });
+        const updatedConfig = await loadConfig();
+        evmConfig = updatedConfig.chains[evmKey];
+      } catch {
+        throw new MoneyError("CHAIN_NOT_CONFIGURED", `${chainInfo.chain} chain not configured`, {
+          note: `Set up ${chainInfo.chain} chain first:
+  await money.setup({ chain: "${chainInfo.chain}", network: "${chainInfo.network}" })`
+        });
+      }
+    }
+    const keyfilePath = expandHome(evmConfig.keyfile);
+    const keyfileData = JSON.parse(await (await import("fs/promises")).readFile(keyfilePath, "utf-8"));
+    let privateKey = keyfileData.privateKey;
+    if (!privateKey.startsWith("0x")) {
+      privateKey = "0x" + privateKey;
+    }
+    const account = privateKeyToAccount(privateKey);
+    const usdcAddress = evmReq.asset;
+    if (!usdcAddress) {
+      throw new MoneyError("INVALID_PARAMS", "No USDC asset address in payment requirements", {
+        note: "The server must provide the USDC contract address in the asset field."
+      });
+    }
+    const requiredAmount = BigInt(evmReq.maxAmountRequired);
+    const usdcDecimals = 6;
+    let bridged = false;
+    let bridgeTxHash;
+    let currentBalance = 0n;
+    try {
+      const evmAdapter = await getAdapter(evmKey);
+      const balResult = await evmAdapter.getBalance(account.address, usdcAddress);
+      currentBalance = BigInt(Math.floor(parseFloat(balResult.amount) * Math.pow(10, usdcDecimals)));
+    } catch {
+      currentBalance = 0n;
+    }
+    if (currentBalance < requiredAmount) {
+      const shortfall = requiredAmount - currentBalance;
+      const amountToBridge = shortfall;
+      const amountToBridgeHuman = Number(amountToBridge) / Math.pow(10, usdcDecimals);
+      const fastKey = configKey("fast", chainInfo.network);
+      const fastConfig = config2.chains[fastKey];
+      if (!fastConfig) {
+        throw new MoneyError("INSUFFICIENT_BALANCE", `Need ${Number(requiredAmount) / 1e6} USDC, have ${Number(currentBalance) / 1e6}. Fast chain not configured for auto-bridge.`, {
+          note: `Set up Fast chain first:
+  await money.setup({ chain: "fast", network: "${chainInfo.network}" })
+Then bridge manually:
+  await money.bridge({ from: { chain: "fast", token: "SETUSDC" }, to: { chain: "${chainInfo.chain}" }, amount: ${amountToBridgeHuman} })`
+        });
+      }
+      let fastBalance = 0n;
+      try {
+        const SETUSDC_HEX = "1e744900021182b293538bb6685b77df095e351364d550021614ce90c8ab9e0a";
+        const fastBalResult = await this.balance({ chain: "fast", network: chainInfo.network, token: SETUSDC_HEX });
+        const reportedAmount = parseFloat(fastBalResult.amount);
+        fastBalance = BigInt(Math.floor(reportedAmount * Math.pow(10, 18)));
+      } catch {
+        fastBalance = 0n;
+      }
+      if (fastBalance < amountToBridge) {
+        throw new MoneyError("INSUFFICIENT_BALANCE", `Need ${Number(requiredAmount) / 1e6} USDC, have ${Number(currentBalance) / 1e6}. FastSet SETUSDC balance (${Number(fastBalance) / 1e6}) is also insufficient for auto-bridge.`, {
+          note: `Fund your FastSet wallet with SETUSDC first.`
+        });
+      }
+      try {
+        const bridgeResult = await this.bridge({
+          from: { chain: "fast", token: "SETUSDC" },
+          to: { chain: chainInfo.chain, token: "SETUSDC" },
+          amount: amountToBridgeHuman,
+          network: chainInfo.network
+        });
+        bridged = true;
+        bridgeTxHash = bridgeResult.txHash;
+        const maxWaitMs = 12e4;
+        const pollIntervalMs = 2e3;
+        const startTime = Date.now();
+        let arrived = false;
+        while (Date.now() - startTime < maxWaitMs) {
+          await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+          try {
+            const evmAdapter = await getAdapter(evmKey);
+            const newBalResult = await evmAdapter.getBalance(account.address, usdcAddress);
+            const newBalance = BigInt(Math.floor(parseFloat(newBalResult.amount) * Math.pow(10, usdcDecimals)));
+            if (newBalance >= requiredAmount) {
+              arrived = true;
+              currentBalance = newBalance;
+              break;
+            }
+          } catch {
+          }
+        }
+        if (!arrived) {
+          throw new MoneyError("TX_FAILED", `Bridge transaction submitted (${bridgeTxHash}) but USDC has not arrived after ${maxWaitMs / 1e3}s.`, {
+            note: `The bridge may still be processing. Check your balance later and retry:
+  await money.balance({ chain: "${chainInfo.chain}", token: "SETUSDC" })`
+          });
+        }
+      } catch (err3) {
+        if (err3 instanceof MoneyError)
+          throw err3;
+        throw new MoneyError("TX_FAILED", `Auto-bridge failed: ${err3 instanceof Error ? err3.message : String(err3)}`, {
+          note: `Bridge manually:
+  await money.bridge({ from: { chain: "fast", token: "SETUSDC" }, to: { chain: "${chainInfo.chain}" }, amount: ${amountToBridgeHuman} })`
+        });
+      }
+    }
+    const authorization = {
+      from: account.address,
+      to: evmReq.payTo,
+      value: evmReq.maxAmountRequired,
+      validAfter: "0",
+      validBefore: String(Math.floor(Date.now() / 1e3) + 3600),
+      // 1 hour from now
+      nonce: "0x" + Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("hex")
+    };
+    const authorizationTypes = {
+      TransferWithAuthorization: [
+        { name: "from", type: "address" },
+        { name: "to", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "validAfter", type: "uint256" },
+        { name: "validBefore", type: "uint256" },
+        { name: "nonce", type: "bytes32" }
+      ]
+    };
+    const usdcName = evmReq.extra?.name ?? "USDC";
+    const usdcVersion = evmReq.extra?.version ?? "2";
+    const domain2 = {
+      name: usdcName,
+      version: usdcVersion,
+      chainId: chainInfo.chainId,
+      verifyingContract: usdcAddress
+    };
+    const signature = await account.signTypedData({
+      domain: domain2,
+      types: authorizationTypes,
+      primaryType: "TransferWithAuthorization",
+      message: {
+        from: authorization.from,
+        to: authorization.to,
+        value: BigInt(authorization.value),
+        validAfter: BigInt(authorization.validAfter),
+        validBefore: BigInt(authorization.validBefore),
+        nonce: authorization.nonce
+      }
+    });
+    const paymentPayload = {
+      x402Version: paymentRequired.x402Version ?? 1,
+      scheme: "exact",
+      network: evmReq.network,
+      payload: {
+        signature,
+        authorization
+      }
+    };
+    const payloadBase64 = Buffer.from(JSON.stringify(paymentPayload)).toString("base64");
+    const paidRes = await fetch(url2, {
+      method,
+      headers: { ...customHeaders, "X-PAYMENT": payloadBase64 },
+      body: requestBody
+    });
+    const resHeaders = {};
+    paidRes.headers.forEach((v, k) => {
+      resHeaders[k] = v;
+    });
+    let resBody;
+    try {
+      resBody = await paidRes.json();
+    } catch {
+      resBody = await paidRes.text();
+    }
+    const amountRaw = BigInt(evmReq.maxAmountRequired);
+    const amountHuman = (Number(amountRaw) / Math.pow(10, usdcDecimals)).toString();
+    const bridgeNote = bridged ? ` (auto-bridged ${bridgeTxHash?.slice(0, 10)}...)` : "";
+    return {
+      success: paidRes.ok,
+      statusCode: paidRes.status,
+      headers: resHeaders,
+      body: resBody,
+      payment: {
+        network: evmReq.network,
+        amount: amountHuman,
+        recipient: evmReq.payTo,
+        txHash: signature.slice(0, 66),
+        // Use signature prefix as pseudo-hash for EIP-3009
+        bridged,
+        bridgeTxHash
+      },
+      note: paidRes.ok ? `EVM payment of ${amountHuman} USDC successful${bridgeNote}. Content delivered.` : `Payment signed but server returned ${paidRes.status}. The facilitator will submit the transaction.`
     };
   },
   // ─── discovery ──────────────────────────────────────────────────────────────
