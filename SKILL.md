@@ -194,7 +194,7 @@ await money.send({
 curl -s {{HOST}}/api/paywall/intents/<intentId>/status
 ```
 
-Wait for `intent.status === "settled"`.
+Wait for `intent.status === "settled"` and stop on terminal non-success states (`"expired"` or `"failed"`).
 
 ### 5. Request unlock token
 
@@ -213,6 +213,7 @@ curl -s {{HOST}}/api/paywall/data/<assetId> \
 
 Operational notes:
 - Status is verified server-side from chain transfer logs (with confirmations).
+- Repeated verifier failures transition an intent to `failed` (threshold via `PAYWALL_MAX_VERIFIER_FAILURES`, default `3`).
 - Unlock token TTL defaults to 10 minutes.
 - Unlock token is one-time use; first successful data fetch consumes it.
 

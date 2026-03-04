@@ -65,6 +65,8 @@ export interface PaywallIntentRecord {
   settled_at?: string;
   delivered_at?: string;
   failed_reason?: string;
+  verifier_error_count?: number;
+  last_verifier_error_at?: string;
   start_block: string;
   last_scanned_block: string;
 }

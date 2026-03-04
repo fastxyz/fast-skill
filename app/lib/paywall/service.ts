@@ -30,6 +30,10 @@ const DEFAULT_UNLOCK_TTL_SECONDS = (() => {
   const parsed = Number(process.env.PAYWALL_UNLOCK_TTL_SECONDS ?? '600');
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 600;
 })();
+const MAX_VERIFIER_FAILURES = (() => {
+  const parsed = Number(process.env.PAYWALL_MAX_VERIFIER_FAILURES ?? '3');
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 3;
+})();
 
 const MVP_CHAIN = 'base';
 const MVP_NETWORK: 'mainnet' = 'mainnet';
@@ -179,6 +183,31 @@ function pushEvent(
     created_at: nowIso(),
     ...input,
   };
+}
+
+function markIntentFailed(params: {
+  events: Record<string, PaywallPaymentEventRecord>;
+  intent: PaywallIntentRecord;
+  reason: string;
+  code: string;
+}): void {
+  const { events, intent, reason, code } = params;
+  if (
+    intent.status === 'failed'
+    || intent.status === 'expired'
+    || intent.status === 'settled'
+    || intent.status === 'delivered'
+  ) {
+    return;
+  }
+
+  intent.status = 'failed';
+  intent.failed_reason = reason;
+  pushEvent(events, {
+    intent_id: intent.intent_id,
+    kind: 'failed',
+    details_json: JSON.stringify({ code, reason }),
+  });
 }
 
 function buildApiUrl(baseUrl: string, pathname: string): string {
@@ -578,6 +607,47 @@ export async function refreshPaywallIntentStatus(
       fromBlockInclusive: fromBlock,
     });
   } catch (err: unknown) {
+    const message = err instanceof Error && err.message
+      ? err.message
+      : 'Unable to verify incoming payment events right now.';
+    const maybeFailed = await mutatePaywallStore((store) => {
+      const intent = store.intents[intentId];
+      if (!intent) {
+        throw new PaywallError('NOT_FOUND', 'Intent not found.', 404);
+      }
+      if (
+        intent.status === 'settled'
+        || intent.status === 'failed'
+        || intent.status === 'expired'
+        || intent.status === 'delivered'
+      ) {
+        return toIntentView(intent);
+      }
+      if (intent.status !== 'pending_payment') {
+        return toIntentView(intent);
+      }
+
+      const failureCount = (intent.verifier_error_count ?? 0) + 1;
+      intent.verifier_error_count = failureCount;
+      intent.last_verifier_error_at = nowIso();
+
+      if (failureCount >= MAX_VERIFIER_FAILURES) {
+        const reason = `Verifier failed ${failureCount} consecutive checks: ${message}`;
+        markIntentFailed({
+          events: store.payment_events,
+          intent,
+          reason,
+          code: 'VERIFIER_UNAVAILABLE',
+        });
+      }
+
+      return toIntentView(intent);
+    });
+
+    if (maybeFailed.status === 'failed') {
+      return maybeFailed;
+    }
+
     throw paywallErrorFromUnknown(
       err,
       'VERIFIER_UNAVAILABLE',
@@ -596,6 +666,12 @@ export async function refreshPaywallIntentStatus(
     const currentLast = BigInt(intent.last_scanned_block);
     if (scan.safeToBlock > currentLast) {
       intent.last_scanned_block = scan.safeToBlock.toString();
+    }
+    if (intent.verifier_error_count !== undefined) {
+      intent.verifier_error_count = 0;
+    }
+    if (intent.last_verifier_error_at !== undefined) {
+      intent.last_verifier_error_at = undefined;
     }
 
     let paidRaw = BigInt(intent.paid_amount_raw);
