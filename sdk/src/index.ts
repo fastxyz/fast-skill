@@ -1512,7 +1512,7 @@ export const money = {
   }> {
     const { url, method = 'GET', headers: customHeaders = {}, body: requestBody, verbose = false } = params;
     const logs: string[] = [];
-    const log = (msg: string) => { if (verbose) logs.push(`[${new Date().toISOString()}] ${msg}`); };
+    const log = (msg: string) => { if (verbose) { logs.push(`[${new Date().toISOString()}] ${msg}`); logs.push(''); } };
 
     log(`━━━ x402Pay START ━━━`);
     log(`URL: ${url}`);
@@ -1622,7 +1622,7 @@ export const money = {
     note: string;
     logs?: string[];
   }> {
-    const log = (msg: string) => { if (verbose) logs.push(`[${new Date().toISOString()}] ${msg}`); };
+    const log = (msg: string) => { if (verbose) { logs.push(`[${new Date().toISOString()}] ${msg}`); logs.push(''); } };
 
     log(`━━━ _x402PayFastSet START ━━━`);
     log(`  Network: ${fastsetReq.network}`);
@@ -1696,14 +1696,19 @@ export const money = {
         transactionCertificate: certificate,
       },
     };
-    log(`  Payload structure: { x402Version: ${paymentPayload.x402Version}, scheme: "${paymentPayload.scheme}", network: "${paymentPayload.network}" }`);
+    log(`  Payload (JSON):`);
+    log(`  ${JSON.stringify(paymentPayload, null, 2).split('\n').join('\n  ')}`);
 
     const payloadBase64 = Buffer.from(JSON.stringify(paymentPayload)).toString('base64');
-    log(`  Payload base64 length: ${payloadBase64.length} chars`);
+    log(`  Payload base64 (${payloadBase64.length} chars):`);
+    log(`  ${payloadBase64.slice(0, 200)}...${payloadBase64.slice(-50)}`);
 
     // Retry request with X-PAYMENT header
     log(`[FastSet Step 6] Sending paid request with X-PAYMENT header...`);
-    log(`  → fetch(${url}, { method: "${method}", headers: { "X-PAYMENT": "..." } })`);
+    log(`  Command: fetch("${url}", {`);
+    log(`    method: "${method}",`);
+    log(`    headers: { "X-PAYMENT": "<base64 payload>" }`);
+    log(`  })`);
     const paidStartTime = Date.now();
     const paidRes = await fetch(url, {
       method,
@@ -1764,7 +1769,7 @@ export const money = {
     note: string;
     logs?: string[];
   }> {
-    const log = (msg: string) => { if (verbose) logs.push(`[${new Date().toISOString()}] ${msg}`); };
+    const log = (msg: string) => { if (verbose) { logs.push(`[${new Date().toISOString()}] ${msg}`); logs.push(''); } };
 
     log(`━━━ _x402PayEvm START ━━━`);
     log(`  Network: ${evmReq.network}`);
@@ -2033,7 +2038,19 @@ export const money = {
 
     // Sign the authorization
     log(`[EVM Step 6] Signing EIP-712 typed data...`);
-    log(`  → account.signTypedData({ domain, types, primaryType: "TransferWithAuthorization", message })`);
+    log(`  Command: account.signTypedData({`);
+    log(`    domain: ${JSON.stringify(domain)},`);
+    log(`    types: { TransferWithAuthorization: [...] },`);
+    log(`    primaryType: "TransferWithAuthorization",`);
+    log(`    message: {`);
+    log(`      from: "${authorization.from}",`);
+    log(`      to: "${authorization.to}",`);
+    log(`      value: ${authorization.value}n,`);
+    log(`      validAfter: ${authorization.validAfter}n,`);
+    log(`      validBefore: ${authorization.validBefore}n,`);
+    log(`      nonce: "${authorization.nonce}"`);
+    log(`    }`);
+    log(`  })`);
     const signStartTime = Date.now();
     const signature = await account.signTypedData({
       domain,
@@ -2049,8 +2066,8 @@ export const money = {
       },
     });
     const signDuration = Date.now() - signStartTime;
-    log(`  ← Signature generated in ${signDuration}ms`);
-    log(`    Signature: ${signature.slice(0, 42)}...${signature.slice(-8)}`);
+    log(`  Response: Signature generated in ${signDuration}ms`);
+    log(`    Signature (full): ${signature}`);
 
     // Build x402 EVM payment payload
     log(`[EVM Step 7] Building x402 payment payload...`);
@@ -2063,14 +2080,19 @@ export const money = {
         authorization,
       },
     };
-    log(`  Payload: { x402Version: ${paymentPayload.x402Version}, scheme: "${paymentPayload.scheme}", network: "${paymentPayload.network}" }`);
+    log(`  Payload (JSON):`);
+    log(`  ${JSON.stringify(paymentPayload, null, 2).split('\n').join('\n  ')}`);
 
     const payloadBase64 = Buffer.from(JSON.stringify(paymentPayload)).toString('base64');
-    log(`  Payload base64 length: ${payloadBase64.length} chars`);
+    log(`  Payload base64 (${payloadBase64.length} chars):`);
+    log(`  ${payloadBase64}`);
 
     // Retry request with X-PAYMENT header
     log(`[EVM Step 8] Sending paid request with X-PAYMENT header...`);
-    log(`  → fetch(${url}, { method: "${method}", headers: { "X-PAYMENT": "..." } })`);
+    log(`  Command: fetch("${url}", {`);
+    log(`    method: "${method}",`);
+    log(`    headers: { "X-PAYMENT": "<base64 payload above>" }`);
+    log(`  })`);
     const paidStartTime = Date.now();
     const paidRes = await fetch(url, {
       method,

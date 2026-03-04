@@ -85071,8 +85071,10 @@ Track status: await money.listPaymentLinks({ payment_id: "${payment_id}" })`
     const { url: url2, method = "GET", headers: customHeaders = {}, body: requestBody, verbose = false } = params;
     const logs = [];
     const log = (msg) => {
-      if (verbose)
+      if (verbose) {
         logs.push(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${msg}`);
+        logs.push("");
+      }
     };
     log(`\u2501\u2501\u2501 x402Pay START \u2501\u2501\u2501`);
     log(`URL: ${url2}`);
@@ -85144,8 +85146,10 @@ Track status: await money.listPaymentLinks({ payment_id: "${payment_id}" })`
    */
   async _x402PayFastSet(url2, method, customHeaders, requestBody, paymentRequired, fastsetReq, verbose = false, logs = []) {
     const log = (msg) => {
-      if (verbose)
+      if (verbose) {
         logs.push(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${msg}`);
+        logs.push("");
+      }
     };
     log(`\u2501\u2501\u2501 _x402PayFastSet START \u2501\u2501\u2501`);
     log(`  Network: ${fastsetReq.network}`);
@@ -85204,11 +85208,16 @@ Track status: await money.listPaymentLinks({ payment_id: "${payment_id}" })`
         transactionCertificate: certificate
       }
     };
-    log(`  Payload structure: { x402Version: ${paymentPayload.x402Version}, scheme: "${paymentPayload.scheme}", network: "${paymentPayload.network}" }`);
+    log(`  Payload (JSON):`);
+    log(`  ${JSON.stringify(paymentPayload, null, 2).split("\n").join("\n  ")}`);
     const payloadBase64 = Buffer.from(JSON.stringify(paymentPayload)).toString("base64");
-    log(`  Payload base64 length: ${payloadBase64.length} chars`);
+    log(`  Payload base64 (${payloadBase64.length} chars):`);
+    log(`  ${payloadBase64.slice(0, 200)}...${payloadBase64.slice(-50)}`);
     log(`[FastSet Step 6] Sending paid request with X-PAYMENT header...`);
-    log(`  \u2192 fetch(${url2}, { method: "${method}", headers: { "X-PAYMENT": "..." } })`);
+    log(`  Command: fetch("${url2}", {`);
+    log(`    method: "${method}",`);
+    log(`    headers: { "X-PAYMENT": "<base64 payload>" }`);
+    log(`  })`);
     const paidStartTime = Date.now();
     const paidRes = await fetch(url2, {
       method,
@@ -85251,8 +85260,10 @@ Track status: await money.listPaymentLinks({ payment_id: "${payment_id}" })`
    */
   async _x402PayEvm(url2, method, customHeaders, requestBody, paymentRequired, evmReq, verbose = false, logs = []) {
     const log = (msg) => {
-      if (verbose)
+      if (verbose) {
         logs.push(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${msg}`);
+        logs.push("");
+      }
     };
     log(`\u2501\u2501\u2501 _x402PayEvm START \u2501\u2501\u2501`);
     log(`  Network: ${evmReq.network}`);
@@ -85478,7 +85489,19 @@ Then bridge manually:
     log(`    chainId: ${domain2.chainId}`);
     log(`    verifyingContract: ${domain2.verifyingContract}`);
     log(`[EVM Step 6] Signing EIP-712 typed data...`);
-    log(`  \u2192 account.signTypedData({ domain, types, primaryType: "TransferWithAuthorization", message })`);
+    log(`  Command: account.signTypedData({`);
+    log(`    domain: ${JSON.stringify(domain2)},`);
+    log(`    types: { TransferWithAuthorization: [...] },`);
+    log(`    primaryType: "TransferWithAuthorization",`);
+    log(`    message: {`);
+    log(`      from: "${authorization.from}",`);
+    log(`      to: "${authorization.to}",`);
+    log(`      value: ${authorization.value}n,`);
+    log(`      validAfter: ${authorization.validAfter}n,`);
+    log(`      validBefore: ${authorization.validBefore}n,`);
+    log(`      nonce: "${authorization.nonce}"`);
+    log(`    }`);
+    log(`  })`);
     const signStartTime = Date.now();
     const signature = await account.signTypedData({
       domain: domain2,
@@ -85494,8 +85517,8 @@ Then bridge manually:
       }
     });
     const signDuration = Date.now() - signStartTime;
-    log(`  \u2190 Signature generated in ${signDuration}ms`);
-    log(`    Signature: ${signature.slice(0, 42)}...${signature.slice(-8)}`);
+    log(`  Response: Signature generated in ${signDuration}ms`);
+    log(`    Signature (full): ${signature}`);
     log(`[EVM Step 7] Building x402 payment payload...`);
     const paymentPayload = {
       x402Version: paymentRequired.x402Version ?? 1,
@@ -85506,11 +85529,16 @@ Then bridge manually:
         authorization
       }
     };
-    log(`  Payload: { x402Version: ${paymentPayload.x402Version}, scheme: "${paymentPayload.scheme}", network: "${paymentPayload.network}" }`);
+    log(`  Payload (JSON):`);
+    log(`  ${JSON.stringify(paymentPayload, null, 2).split("\n").join("\n  ")}`);
     const payloadBase64 = Buffer.from(JSON.stringify(paymentPayload)).toString("base64");
-    log(`  Payload base64 length: ${payloadBase64.length} chars`);
+    log(`  Payload base64 (${payloadBase64.length} chars):`);
+    log(`  ${payloadBase64}`);
     log(`[EVM Step 8] Sending paid request with X-PAYMENT header...`);
-    log(`  \u2192 fetch(${url2}, { method: "${method}", headers: { "X-PAYMENT": "..." } })`);
+    log(`  Command: fetch("${url2}", {`);
+    log(`    method: "${method}",`);
+    log(`    headers: { "X-PAYMENT": "<base64 payload above>" }`);
+    log(`  })`);
     const paidStartTime = Date.now();
     const paidRes = await fetch(url2, {
       method,
