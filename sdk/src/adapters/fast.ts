@@ -92,9 +92,10 @@ const ClaimTypeBcs = bcs.enum('ClaimType', {
   TokenCreation: TokenCreationBcs,
   TokenManagement: TokenManagementBcs,
   Mint: MintBcs,
+  Burn: bcs.struct('Burn', { token_id: bcs.bytes(32), amount: AmountBcs }),  // CRITICAL: Must be at index 4
   StateInitialization: bcs.struct('StateInitialization', { dummy: bcs.u8() }),
   StateUpdate: bcs.struct('StateUpdate', { dummy: bcs.u8() }),
-  ExternalClaim: ExternalClaimFullBcs,
+  ExternalClaim: ExternalClaimFullBcs,  // Now at correct index 7
   StateReset: bcs.struct('StateReset', { dummy: bcs.u8() }),
   JoinCommittee: bcs.struct('JoinCommittee', { dummy: bcs.u8() }),
   LeaveCommittee: bcs.struct('LeaveCommittee', { dummy: bcs.u8() }),

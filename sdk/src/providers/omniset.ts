@@ -22,13 +22,27 @@ function base64ToBytes(b64: string): Uint8Array {
   return new Uint8Array(Buffer.from(b64, 'base64'));
 }
 
+/**
+ * Convert a hex string (with or without 0x prefix) to a Uint8Array.
+ */
+function hexToUint8Array(hex: string): Uint8Array {
+  const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
+  const bytes = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
 /** FastSet token IDs */
 const WETH_FASTSET_TOKEN_ID = base64ToBytes('W6YWYjF5vVWnczFBJVAy+OEyh2ACG+lhZtO8FF8h5jo=');
 const SET_FASTSET_TOKEN_ID = base64ToBytes('+ldecAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+const USDC_FASTSET_TOKEN_ID = hexToUint8Array('1e744900021182b293538bb6685b77df095e351364d550021614ce90c8ab9e0a');
 
 /** Hex representations of FastSet token IDs (used for matching resolved addresses) */
 const SET_FASTSET_TOKEN_HEX = 'fa575e7000000000000000000000000000000000000000000000000000000000';
 const WETH_FASTSET_TOKEN_HEX = '5ba616623179bd55a7733141255032f8e1328760021be96166d3bc145f21e63a';
+const USDC_FASTSET_TOKEN_HEX = '1e744900021182b293538bb6685b77df095e351364d550021614ce90c8ab9e0a';
 
 // ─── Chain configuration ──────────────────────────────────────────────────────
 
@@ -45,19 +59,19 @@ interface OmnisetChainConfig {
 const CHAIN_CONFIGS: Record<string, OmnisetChainConfig> = {
   ethereum: {
     chainId: 11155111,
-    bridgeContract: '0xaBe4A90B23738EE0d56425825cF20C63C578e75a',
+    bridgeContract: '0x38b48764f6B12e1Dd5e4f8391d06d34Ba3920201',
     wsetAddress: '0x485DdBAa2D62ee70D03B4789912948f3aF7E35B8',
     wethAddress: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14',
-    fastsetBridgeAddress: 'set1la44katfwdhv9tqvskjrjc5cmy7ufjwvufwz4suuvazua5dtf4js08rgrz',
-    relayerUrl: 'https://omniset.fastset.xyz/ethereum-sepolia-relayer/relay',
+    fastsetBridgeAddress: 'fast19cjwajufyuqv883ydlvrp8xrhxejuvfe40pxq5dsrv675zgh89sqg9txs8',
+    relayerUrl: 'https://staging.omniset.fastset.xyz/ethereum-sepolia-relayer/relay',
   },
   arbitrum: {
     chainId: 421614,
-    bridgeContract: '0x485DdBAa2D62ee70D03B4789912948f3aF7E35B8',
+    bridgeContract: '0xBb9111E62c9EE364cF6dc676d754602a2E259bd3',
     wsetAddress: '0xA0431d49B71c6f07603272C6C580560AfF41598E',
     wethAddress: '0x980b62da83eff3d4576c647993b0c1d7faf17c73',
-    fastsetBridgeAddress: 'set1la4pjzupsdwwgx3vu0fvvl6hk4ts3psg2d4g3mlq5yxwqhdjl03sp7ek2u',
-    relayerUrl: 'https://omniset.fastset.xyz/arbitrum-sepolia-relayer/relay',
+    fastsetBridgeAddress: 'fast1pz07pdlspsydyt2g79yeshunhfyjsr5j4ahuyfv8hpdn00ks8u6q8axf9t',
+    relayerUrl: 'https://staging.omniset.fastset.xyz/arbitrum-sepolia-relayer/relay',
   },
 };
 
@@ -84,6 +98,8 @@ const CHAIN_TOKENS: Record<string, Record<string, OmnisetTokenInfo>> = {
     WETH: { evmAddress: '0x980b62da83eff3d4576c647993b0c1d7faf17c73', fastsetTokenId: WETH_FASTSET_TOKEN_ID, decimals: 18, isNative: false },
     WSET: { evmAddress: '0xA0431d49B71c6f07603272C6C580560AfF41598E', fastsetTokenId: SET_FASTSET_TOKEN_ID, decimals: 18, isNative: false },
     SET: { evmAddress: '0xA0431d49B71c6f07603272C6C580560AfF41598E', fastsetTokenId: SET_FASTSET_TOKEN_ID, decimals: 18, isNative: false },
+    USDC: { evmAddress: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d', fastsetTokenId: USDC_FASTSET_TOKEN_ID, decimals: 6, isNative: false },
+    SETUSDC: { evmAddress: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d', fastsetTokenId: USDC_FASTSET_TOKEN_ID, decimals: 6, isNative: false },
   },
 };
 
@@ -115,6 +131,7 @@ function resolveOmnisetToken(token: string, evmChain: string): OmnisetTokenInfo 
   const clean = token.startsWith('0x') ? token.slice(2).toLowerCase() : token.toLowerCase();
   if (clean === SET_FASTSET_TOKEN_HEX) return chainTokens['SET'] ?? null;
   if (clean === WETH_FASTSET_TOKEN_HEX) return chainTokens['WETH'] ?? null;
+  if (clean === USDC_FASTSET_TOKEN_HEX) return chainTokens['USDC'] ?? null;
 
   // Try by EVM address
   for (const info of Object.values(chainTokens)) {
@@ -134,16 +151,52 @@ function fastAddressToBytes32(address: string): `0x${string}` {
   return `0x${Buffer.from(bytes).toString('hex')}` as `0x${string}`;
 }
 
+// ─── Cross-sign helper ──────────────────────────────────────────────────────────
+
+const CROSS_SIGN_URL = 'https://staging.omniset.fastset.xyz/cross-sign';
+
 /**
- * Convert a hex string (with or without 0x prefix) to a Uint8Array.
+ * Call the OmniSet cross-sign endpoint to get an EVM signature for a FastSet certificate.
  */
-function hexToUint8Array(hex: string): Uint8Array {
-  const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
-  const bytes = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+async function crossSignCertificate(certificate: unknown): Promise<{ transaction: number[]; signature: string }> {
+  const res = await fetch(CROSS_SIGN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'crossSign_evmSignCertificate',
+      params: { certificate },
+    }),
+  });
+
+  if (!res.ok) {
+    throw new MoneyError('TX_FAILED', `Cross-sign request failed: ${res.status}`, {
+      chain: 'fast',
+      note: 'The OmniSet cross-sign service is unavailable.',
+    });
   }
-  return bytes;
+
+  const json = (await res.json()) as {
+    result?: { transaction: number[]; signature: string };
+    error?: { message: string; code?: number };
+  };
+
+  if (json.error) {
+    throw new MoneyError('TX_FAILED', `Cross-sign error: ${json.error.message}`, {
+      chain: 'fast',
+      note: 'The OmniSet cross-sign service rejected the certificate.',
+    });
+  }
+
+  if (!json.result?.transaction || !json.result?.signature) {
+    throw new MoneyError('TX_FAILED', 'Cross-sign returned invalid response', {
+      chain: 'fast',
+      note: 'The OmniSet cross-sign service returned an unexpected response format.',
+    });
+  }
+
+  return json.result;
 }
 
 // ─── ABI ──────────────────────────────────────────────────────────────────────
@@ -219,7 +272,7 @@ export const omnisetProvider: BridgeProvider = {
             `Cannot resolve token "${params.fromToken}" on OmniSet for chain "${params.fromChain}".`,
             {
               chain: params.fromChain,
-              note: `Supported tokens: ETH, WETH, WSET, SET.\n  Example: await money.bridge({ from: { chain: "ethereum", token: "ETH" }, to: { chain: "fast" }, amount: 0.01, network: "testnet" })`,
+              note: `Supported tokens: ETH, WETH, WSET, SET, USDC (arbitrum only).\n  Example: await money.bridge({ from: { chain: "ethereum", token: "ETH" }, to: { chain: "fast" }, amount: 0.01, network: "testnet" })`,
             },
           );
         }
@@ -347,7 +400,7 @@ export const omnisetProvider: BridgeProvider = {
           `Cannot resolve token "${params.fromToken}" on OmniSet for destination chain "${params.toChain}".`,
           {
             chain: params.toChain,
-            note: `Supported tokens: SET (→ WSET), setWETH (→ WETH), setWSET (→ WSET).\n  Example: await money.bridge({ from: { chain: "fast", token: "SET" }, to: { chain: "ethereum" }, amount: 20, network: "testnet" })`,
+            note: `Supported tokens: SET (→ WSET), setWETH (→ WETH), setWSET (→ WSET), SETUSDC (→ USDC, arbitrum only).\n  Example: await money.bridge({ from: { chain: "fast", token: "SETUSDC" }, to: { chain: "arbitrum" }, amount: 0.1, network: "testnet" })`,
           },
         );
       }
@@ -365,10 +418,8 @@ export const omnisetProvider: BridgeProvider = {
         tokenInfo.fastsetTokenId,
       );
 
-      // Step 2 — Cross-sign the transfer certificate
-      const transferCrossSign = await params.fastExecutor.evmSignCertificate(
-        transferResult.certificate,
-      );
+      // Step 2 — Cross-sign the transfer certificate via OmniSet
+      const transferCrossSign = await crossSignCertificate(transferResult.certificate);
 
       // Step 3 — Compute transferClaimHash (EIP-191 message hash of the signed transaction bytes)
       const transferClaimHash = hashMessage({
@@ -377,7 +428,6 @@ export const omnisetProvider: BridgeProvider = {
 
       // Step 4 — Build IntentClaim ABI-encoded bytes
       // DynamicTransfer payload: (tokenAddress, recipient)
-      // For native ETH withdrawals, use wethAddress since the bridge holds WETH
       const dynamicTransferPayload = encodeAbiParameters(
         [{ type: 'address' }, { type: 'address' }],
         [
@@ -422,16 +472,14 @@ export const omnisetProvider: BridgeProvider = {
         intentBytes,
       );
 
-      // Step 6 — Cross-sign the intent certificate
-      const intentCrossSign = await params.fastExecutor.evmSignCertificate(
-        intentResult.certificate,
-      );
+      // Step 6 — Cross-sign the intent certificate via OmniSet
+      const intentCrossSign = await crossSignCertificate(intentResult.certificate);
 
       // Step 7 — POST to relayer
       const relayerBody = {
         encoded_transfer_claim: Array.from(new Uint8Array(transferCrossSign.transaction.map(Number))),
         transfer_proof: transferCrossSign.signature,
-        transfer_claim_id: transferResult.txHash,
+        transfer_fast_tx_id: transferResult.txHash,
         fastset_address: params.senderAddress,
         external_address: params.receiverAddress,
         encoded_intent_claim: Array.from(new Uint8Array(intentCrossSign.transaction.map(Number))),

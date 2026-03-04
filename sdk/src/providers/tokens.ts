@@ -93,6 +93,14 @@ const WELL_KNOWN_TOKENS: WellKnownToken[] = [
       arbitrum: '0xA0431d49B71c6f07603272C6C580560AfF41598E',
     },
   },
+  {
+    symbol: 'SETUSDC',
+    decimals: 6,
+    addresses: {
+      fast: '0x1e744900021182b293538bb6685b77df095e351364d550021614ce90c8ab9e0a',
+      arbitrum: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
+    },
+  },
 ];
 
 /**
