@@ -78,6 +78,12 @@ export type PaymentLinksParams = z.infer<typeof S.PaymentLinksParams>;
 /** Result of money.listPaymentLinks() */
 export type PaymentLinksResult = z.infer<typeof S.PaymentLinksResult>;
 
+/** Params for money.x402Pay() */
+export type X402PayParams = z.infer<typeof S.X402PayParams>;
+
+/** Result of money.x402Pay() */
+export type X402PayResult = z.infer<typeof S.X402PayResult>;
+
 /** Params for money.registerEvmChain() */
 export type RegisterEvmChainParams = z.infer<typeof S.RegisterEvmChainParams>;
 

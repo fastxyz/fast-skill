@@ -721,6 +721,41 @@ const listPaymentLinksMeta = {
   notes: 'Returns locally tracked payment links from ~/.money/payment-links.csv, newest first.',
 } as const;
 
+// ─── x402Pay ─────────────────────────────────────────────────────────────────
+
+export const X402PayParams = z.object({
+  url: z.string().describe('URL that returns 402 Payment Required'),
+  method: z.enum(['GET', 'POST', 'PUT', 'DELETE']).optional().describe('HTTP method (default: GET)'),
+  headers: z.record(z.string(), z.string()).optional().describe('Additional request headers'),
+  body: z.string().optional().describe('Request body for POST/PUT'),
+});
+
+export const X402PayResult = z.object({
+  success: z.boolean(),
+  statusCode: z.number(),
+  headers: z.record(z.string(), z.string()),
+  body: z.unknown(),
+  payment: z.object({
+    network: z.string(),
+    amount: z.string(),
+    amountRaw: z.string(),
+    decimals: z.number().nullable(),
+    token: z.string(),
+    recipient: z.string(),
+    txHash: z.string(),
+  }).optional(),
+  note: z.string(),
+});
+
+const x402PayMeta = {
+  description: 'Pay for x402-protected content on FastSet. Automatically handles 402 responses by creating payment, submitting to FastSet, and retrying with X-PAYMENT header.',
+  examples: [
+    'await money.x402Pay({ url: "https://api.example.com/premium" })',
+    'await money.x402Pay({ url: "https://api.example.com/data", method: "POST", body: JSON.stringify({ query: "..." }) })',
+  ],
+  notes: 'Supports fastset-devnet/testnet and fastset-mainnet/mainnet (legacy "fast" maps to testnet). The Fast chain must be set up on the matching network first. The 402 response must include accepts[].asset. Amount formatting uses token metadata when available; otherwise amount is returned in raw units.',
+} as const;
+
 // ─── Method schema entry ─────────────────────────────────────────────────────
 
 export interface MethodEntry {
@@ -775,6 +810,13 @@ export const METHOD_SCHEMAS: Record<string, MethodEntry> = {
     result: PaymentLinksResult,
     examples: [...listPaymentLinksMeta.examples],
     notes: listPaymentLinksMeta.notes,
+  },
+  x402Pay: {
+    description: x402PayMeta.description,
+    params: X402PayParams,
+    result: X402PayResult,
+    examples: [...x402PayMeta.examples],
+    notes: x402PayMeta.notes,
   },
 };
 

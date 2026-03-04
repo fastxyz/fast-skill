@@ -782,24 +782,6 @@ export async function refreshPaywallIntentStatus(
     return existing;
   }
 
-  const expiresAtMs = Date.parse(existing.expiresAt);
-  if (Number.isFinite(expiresAtMs) && nowMs > expiresAtMs) {
-    return mutatePaywallStore((store) => {
-      const intent = store.intents[intentId];
-      if (!intent) {
-        throw new PaywallError('NOT_FOUND', 'Intent not found.', 404);
-      }
-      if (intent.status === 'pending_payment') {
-        intent.status = 'expired';
-        pushEvent(store.payment_events, {
-          intent_id: intent.intent_id,
-          kind: 'expired',
-        });
-      }
-      return toIntentView(intent);
-    });
-  }
-
   const fromBlock = BigInt(existing.lastScannedBlock) + BigInt(1);
   let scan: Awaited<ReturnType<typeof scanIncomingTransfers>>;
   try {
@@ -902,6 +884,16 @@ export async function refreshPaywallIntentStatus(
         kind: 'settled',
         amount_raw: intent.paid_amount_raw,
       });
+    }
+    if (intent.status === 'pending_payment') {
+      const expiresAtMs = Date.parse(intent.expires_at);
+      if (Number.isFinite(expiresAtMs) && nowMs > expiresAtMs) {
+        intent.status = 'expired';
+        pushEvent(store.payment_events, {
+          intent_id: intent.intent_id,
+          kind: 'expired',
+        });
+      }
     }
 
     return toIntentView(intent);
