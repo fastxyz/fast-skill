@@ -36,6 +36,7 @@ export default async function Home() {
             <a href="/agent-flow">Agent Flow UI</a>
             <a href="/paywall">Paywall Studio</a>
             <a href="/payment-links">Payment Links</a>
+            <a href="/swap">Swap Terminal</a>
             <a href="/pay">Pay</a>
             <a href="/skill.md">Skill</a>
             <a href="/money.bundle.js" download>Bundle</a>
@@ -210,6 +211,7 @@ export default async function Home() {
             <a href="/agent-flow">Agent Flow UI</a>
             <a href="/paywall">Paywall Studio</a>
             <a href="/payment-links">Payment Links</a>
+            <a href="/swap">Swap Terminal</a>
             <a href="/pay">Pay</a>
             <a href="/skill.md">Skill</a>
             <a href="/money.bundle.js" download>
