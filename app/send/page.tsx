@@ -58,7 +58,7 @@ function statusColor(state: SendUiState): string {
 }
 
 function defaultTokenForSend(chain: { value: string; token: string }): string {
-  return chain.token;
+  return chain.value === 'fast' ? 'SETUSDC' : chain.token;
 }
 
 export default function SendPage() {
