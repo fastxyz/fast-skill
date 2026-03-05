@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AgentFlowPanel } from '../components/agent-flow/agent-flow-panel';
+import type { ApiActionCardProps } from '../components/agent-flow/api-action-card';
 import { PRODUCT_TOUR_QUERY_PARAM, PRODUCT_TOUR_STORAGE_KEY } from '../lib/demo/tour';
 
 type BuyerSession = {
@@ -64,6 +66,17 @@ type SessionResponse = {
 type CreateIntentResponse = {
   intent: PaymentIntent;
   session: BuyerSession;
+  error?: string;
+};
+
+type PayIntentResponse = {
+  intent: PaymentIntent;
+  session: BuyerSession;
+  error?: string;
+};
+
+type DeliverIntentResponse = {
+  intent: PaymentIntent;
   error?: string;
 };
 
@@ -131,6 +144,8 @@ export default function DemoPage() {
   const [tourStep, setTourStep] = useState<MerchantTourStep>('fill_fields');
   const [tourIntentId, setTourIntentId] = useState<string | null>(null);
   const [tourCursor, setTourCursor] = useState<{ x: number; y: number } | null>(null);
+  const [origin, setOrigin] = useState('');
+  const [lastCreateIntentResponse, setLastCreateIntentResponse] = useState<CreateIntentResponse | null>(null);
   const serviceInputRef = useRef<HTMLInputElement | null>(null);
   const amountInputRef = useRef<HTMLInputElement | null>(null);
   const createButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -140,6 +155,184 @@ export default function DemoPage() {
     () => intents.filter((i) => !['expired', 'delivered'].includes(i.status)),
     [intents],
   );
+  const latestIntent = useMemo(
+    () => activeIntents[0] ?? intents[0] ?? null,
+    [activeIntents, intents],
+  );
+
+  const createRequestBody = useMemo(() => ({
+    buyerSessionId: session?.sessionId ?? 'buyer_...',
+    serviceId: serviceId.trim() || 'movie tickets',
+    amount: amount.trim() || '2',
+    settlementChain,
+  }), [amount, serviceId, session?.sessionId, settlementChain]);
+
+  const merchantAgentActions = useMemo<ApiActionCardProps[]>(() => {
+    const createSuccess = lastCreateIntentResponse ?? {
+      intent: {
+        intentId: 'intent_...',
+        status: 'pending_payment',
+        paymentLink: `${origin || 'https://example.local'}/merchant/checkout?intentId=intent_...`,
+        paymentLinkAgent: `${origin || 'https://example.local'}/api/pay?...`,
+      },
+      session: {
+        sessionId: session?.sessionId ?? 'buyer_...',
+        addressFast: session?.addressFast ?? '0x...',
+      },
+    };
+
+    const payIntentId = latestIntent?.intentId ?? ':intentId';
+    const payUrl = `${origin || ''}/api/demo/intents/${payIntentId}/pay`;
+    const deliverUrl = `${origin || ''}/api/demo/intents/${payIntentId}/deliver`;
+    const payAmount = latestIntent?.requestedAmount ?? (amount.trim() || '2');
+
+    return [
+      {
+        title: 'Create Intent',
+        integrationMode: 'HTTP endpoint',
+        request: {
+          method: 'POST',
+          url: `${origin || ''}/api/demo/intents`,
+          headers: { 'Content-Type': 'application/json' },
+          body: createRequestBody,
+        },
+        successExample: createSuccess,
+        failureExamples: [
+          {
+            status: 400,
+            payload: { error: 'Amount is required.' },
+            note: 'Provide a positive decimal amount.',
+          },
+          {
+            status: 400,
+            payload: { error: 'Settlement chain must be one of: fast, arbitrum-sepolia.' },
+            note: 'Use a supported settlement chain value.',
+          },
+          {
+            status: 404,
+            payload: { error: 'Buyer session not found. Create a session first.' },
+            note: 'Refresh buyer session and retry.',
+          },
+        ],
+        environment: 'Demo APIs (testnet defaults)',
+        fieldNotes: [
+          '`buyerSessionId` can be omitted when demo cookie session is present.',
+          '`amount` must be positive decimal notation.',
+        ],
+        tryIt: {
+          label: 'Try create intent',
+          run: async () => createIntent(),
+        },
+      },
+      {
+        title: 'Pay Intent',
+        integrationMode: 'HTTP endpoint',
+        request: {
+          method: 'POST',
+          url: payUrl || '/api/demo/intents/:intentId/pay',
+          headers: { 'Content-Type': 'application/json' },
+          body: { amount: payAmount },
+        },
+        successExample: latestIntent
+          ? {
+              intent: {
+                intentId: latestIntent.intentId,
+                status: latestIntent.status === 'delivered' ? 'delivered' : 'source_paid',
+                sourceTxHash: latestIntent.sourceTxHash ?? '0x...',
+              },
+              session: {
+                sessionId: session?.sessionId ?? latestIntent.buyerSessionId,
+              },
+            }
+          : {
+              intent: {
+                intentId: ':intentId',
+                status: 'source_paid',
+                sourceTxHash: '0x...',
+              },
+              session: {
+                sessionId: session?.sessionId ?? 'buyer_...',
+              },
+            },
+        failureExamples: [
+          {
+            status: 400,
+            payload: { error: 'Payment link expired.' },
+            note: 'Create a new intent.',
+          },
+          {
+            status: 404,
+            payload: { error: 'Payment intent not found.' },
+            note: 'Verify the `intentId`.',
+          },
+        ],
+        fieldNotes: [
+          'Use the latest active intent ID.',
+          'Verifier advances status to settled after payment detection.',
+        ],
+        tryIt: latestIntent
+          ? {
+              label: 'Try pay latest intent',
+              run: async () => payIntent(latestIntent.intentId),
+            }
+          : undefined,
+      },
+      {
+        title: 'Deliver Intent',
+        integrationMode: 'HTTP endpoint',
+        request: {
+          method: 'POST',
+          url: deliverUrl || '/api/demo/intents/:intentId/deliver',
+          headers: { 'Content-Type': 'application/json' },
+          body: {},
+        },
+        successExample: {
+          intent: {
+            intentId: payIntentId,
+            status: 'delivered',
+            deliveredAt: latestIntent?.deliveredAt ?? '2026-01-01T00:00:00.000Z',
+          },
+        },
+        failureExamples: [
+          {
+            status: 400,
+            payload: { error: 'Intent must be settled before delivery.' },
+            note: 'Wait for settled status before calling deliver.',
+          },
+          {
+            status: 404,
+            payload: { error: 'Payment intent not found.' },
+            note: 'Verify the `intentId`.',
+          },
+        ],
+        fieldNotes: [
+          'Requires settled status.',
+          'Transitions intent to delivered.',
+        ],
+        tryIt: latestIntent
+          ? {
+              label: 'Try deliver latest intent',
+              run: async () => deliverIntent(latestIntent.intentId),
+            }
+          : undefined,
+      },
+    ];
+  }, [
+    amount,
+    createRequestBody,
+    createIntent,
+    deliverIntent,
+    lastCreateIntentResponse,
+    latestIntent,
+    origin,
+    payIntent,
+    session?.addressFast,
+    session?.sessionId,
+  ]);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   useEffect(() => {
     try {
@@ -280,8 +473,8 @@ export default function DemoPage() {
     return () => clearInterval(id);
   }, []);
 
-  async function createIntent() {
-    if (!session) return;
+  async function createIntent(): Promise<CreateIntentResponse | null> {
+    if (!session) return null;
     try {
       setBusy(true);
       setCreatingIntent(true);
@@ -298,6 +491,7 @@ export default function DemoPage() {
           settlementChain,
         }),
       });
+      setLastCreateIntentResponse(created);
       const appeared = await waitForIntentToAppear(created.intent.intentId);
       if (!appeared) {
         setError('Intent was created, but the list is still syncing. It should appear shortly.');
@@ -307,43 +501,49 @@ export default function DemoPage() {
         setTourIntentId(created.intent.intentId);
         setTourStep('open_link');
       }
+      return created;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
+      throw err;
     } finally {
       setCreatingIntent(false);
       setBusy(false);
     }
   }
 
-  async function payIntent(intentId: string, customAmount?: string) {
+  async function payIntent(intentId: string, customAmount?: string): Promise<PayIntentResponse> {
     try {
       setBusy(true);
       setError('');
-      await fetchJson(`/api/demo/intents/${intentId}/pay`, {
+      const response = await fetchJson<PayIntentResponse>(`/api/demo/intents/${intentId}/pay`, {
         method: 'POST',
         body: JSON.stringify(customAmount ? { amount: customAmount } : {}),
       });
       await refreshIntents();
+      return response;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
+      throw err;
     } finally {
       setBusy(false);
     }
   }
 
-  async function deliverIntent(intentId: string) {
+  async function deliverIntent(intentId: string): Promise<DeliverIntentResponse> {
     try {
       setBusy(true);
       setError('');
-      await fetchJson(`/api/demo/intents/${intentId}/deliver`, {
+      const response = await fetchJson<DeliverIntentResponse>(`/api/demo/intents/${intentId}/deliver`, {
         method: 'POST',
       });
       await refreshIntents();
+      return response;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
+      throw err;
     } finally {
       setBusy(false);
     }
@@ -386,84 +586,93 @@ export default function DemoPage() {
 
         <section style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem' }}>
           <h2 style={{ fontSize: '0.95rem', marginBottom: '0.75rem' }}>Merchant: Create Intent</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-            <label
-              style={{
-                display: 'grid',
-                gap: '0.3rem',
-                borderRadius: 8,
-                padding: tourActive && tourStep === 'fill_fields' ? '0.35rem' : 0,
-                outline: tourActive && tourStep === 'fill_fields' ? '1px solid #7dd3fc' : 'none',
-              }}
-            >
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Service / Product</span>
-              <input
-                ref={serviceInputRef}
-                value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-                placeholder="movie tickets"
-                style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
-              />
-            </label>
-            <label
-              style={{
-                display: 'grid',
-                gap: '0.3rem',
-                borderRadius: 8,
-                padding: tourActive && tourStep === 'fill_fields' ? '0.35rem' : 0,
-                outline: tourActive && tourStep === 'fill_fields' ? '1px solid #7dd3fc' : 'none',
-              }}
-            >
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Amount (SET)</span>
-              <input
-                ref={amountInputRef}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="2"
-                type="number"
-                min="0"
-                step="any"
-                style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
-              />
-            </label>
-            <label style={{ display: 'grid', gap: '0.3rem' }}>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Settlement Chain</span>
-              <select
-                value={settlementChain}
-                onChange={(e) => setSettlementChain(e.target.value as SettlementChain)}
-                style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
-              >
-                <option value="fast">Fast</option>
-                <option value="arbitrum-sepolia">Arbitrum Sepolia (via OmniSet)</option>
-              </select>
-            </label>
-            <button
-              ref={createButtonRef}
-              onClick={() => void createIntent()}
-              disabled={busy || creatingIntent || !session}
-              style={{
-                background: 'var(--text)',
-                color: 'var(--bg)',
-                border: 0,
-                borderRadius: 6,
-                padding: '0.55rem 0.9rem',
-                cursor: 'pointer',
-                alignSelf: 'end',
-                outline: tourActive && tourStep === 'create_intent' ? '1px solid #7dd3fc' : 'none',
-                boxShadow: tourActive && tourStep === 'create_intent' ? '0 0 0 4px rgba(125, 211, 252, 0.25)' : 'none',
-              }}
-            >
-              {creatingIntent ? 'Creating...' : 'Create'}
-            </button>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '0.8rem', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gap: '0.65rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+                <label
+                  style={{
+                    display: 'grid',
+                    gap: '0.3rem',
+                    borderRadius: 8,
+                    padding: tourActive && tourStep === 'fill_fields' ? '0.35rem' : 0,
+                    outline: tourActive && tourStep === 'fill_fields' ? '1px solid #7dd3fc' : 'none',
+                  }}
+                >
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Service / Product</span>
+                  <input
+                    ref={serviceInputRef}
+                    value={serviceId}
+                    onChange={(e) => setServiceId(e.target.value)}
+                    placeholder="movie tickets"
+                    style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
+                  />
+                </label>
+                <label
+                  style={{
+                    display: 'grid',
+                    gap: '0.3rem',
+                    borderRadius: 8,
+                    padding: tourActive && tourStep === 'fill_fields' ? '0.35rem' : 0,
+                    outline: tourActive && tourStep === 'fill_fields' ? '1px solid #7dd3fc' : 'none',
+                  }}
+                >
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Amount (SET)</span>
+                  <input
+                    ref={amountInputRef}
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="2"
+                    type="number"
+                    min="0"
+                    step="any"
+                    style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
+                  />
+                </label>
+                <label style={{ display: 'grid', gap: '0.3rem' }}>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Settlement Chain</span>
+                  <select
+                    value={settlementChain}
+                    onChange={(e) => setSettlementChain(e.target.value as SettlementChain)}
+                    style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
+                  >
+                    <option value="fast">Fast</option>
+                    <option value="arbitrum-sepolia">Arbitrum Sepolia (via OmniSet)</option>
+                  </select>
+                </label>
+                <button
+                  ref={createButtonRef}
+                  onClick={() => void createIntent()}
+                  disabled={busy || creatingIntent || !session}
+                  style={{
+                    background: 'var(--text)',
+                    color: 'var(--bg)',
+                    border: 0,
+                    borderRadius: 6,
+                    padding: '0.55rem 0.9rem',
+                    cursor: 'pointer',
+                    alignSelf: 'end',
+                    outline: tourActive && tourStep === 'create_intent' ? '1px solid #7dd3fc' : 'none',
+                    boxShadow: tourActive && tourStep === 'create_intent' ? '0 0 0 4px rgba(125, 211, 252, 0.25)' : 'none',
+                  }}
+                >
+                  {creatingIntent ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+              <p style={{ color: 'var(--text-3)', fontSize: '0.76rem' }}>
+                Expiry default: {defaults?.expiryMinutes ?? 15}m. Receiver reuse cooldown: {defaults?.receiverCooldownMinutes ?? 30}m.
+                {' '}
+                Auto-delivery: {defaults?.autoDeliveryEnabled === false ? 'off' : 'on'}
+                {defaults?.autoDeliveryEnabled && (defaults.autoDeliveryDelayMs ?? 0) > 0
+                  ? ` (${Math.floor((defaults.autoDeliveryDelayMs ?? 0) / 1000)}s delay)`
+                  : ''}.
+              </p>
+            </div>
+            <AgentFlowPanel
+              title="Agent Flow"
+              subtitle="Shared action-card system wired to merchant demo endpoints."
+              actions={merchantAgentActions}
+            />
           </div>
-          <p style={{ color: 'var(--text-3)', fontSize: '0.76rem', marginTop: '0.65rem' }}>
-            Expiry default: {defaults?.expiryMinutes ?? 15}m. Receiver reuse cooldown: {defaults?.receiverCooldownMinutes ?? 30}m.
-            {' '}
-            Auto-delivery: {defaults?.autoDeliveryEnabled === false ? 'off' : 'on'}
-            {defaults?.autoDeliveryEnabled && (defaults.autoDeliveryDelayMs ?? 0) > 0
-              ? ` (${Math.floor((defaults.autoDeliveryDelayMs ?? 0) / 1000)}s delay)`
-              : ''}.
-          </p>
         </section>
 
         <section style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem' }}>
