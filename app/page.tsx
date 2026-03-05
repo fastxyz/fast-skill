@@ -28,28 +28,6 @@ export default async function Home() {
 
   return (
     <>
-      <nav className="nav">
-        <div className="nav-inner">
-          <span className="nav-wordmark">money</span>
-          <div className="nav-links">
-            <a href="/merchant">Merchant Demo</a>
-            <a href="/agent-flow">Agent Flow UI</a>
-            <a href="/paywall">Paywall Studio</a>
-            <a href="/payment-links">Payment Links</a>
-            <a href="/swap">Swap Terminal</a>
-            <a href="/bridge">Bridge Console</a>
-            <a href="/sign">Signature Lab</a>
-            <a href="/providers">Providers</a>
-            <a href="/tokens">Tokens</a>
-            <a href="/utils">Utilities</a>
-            <a href="/errors">Errors</a>
-            <a href="/pay">Pay</a>
-            <a href="/skill.md">Skill</a>
-            <a href="/money.bundle.js" download>Bundle</a>
-          </div>
-        </div>
-      </nav>
-
       <main>
         <section className="hero">
           <div className="container">

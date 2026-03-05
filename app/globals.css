@@ -58,8 +58,7 @@ code { font-family: var(--font-mono), 'SF Mono', 'Consolas', monospace; }
 }
 
 .nav-inner {
-  max-width: 720px;
-  margin: 0 auto;
+  width: 100%;
   padding: 0 1.5rem;
   height: 52px;
   display: flex;

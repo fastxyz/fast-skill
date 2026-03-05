@@ -347,18 +347,6 @@ export default function PayPage() {
       `}</style>
 
       <div className="pay-page">
-        <nav className="nav">
-          <div className="nav-inner">
-            <a href="/" className="nav-wordmark">money</a>
-            <div className="nav-links">
-              <a href="/merchant">Merchant Demo</a>
-              <a href="/pay">Pay</a>
-              <a href="/skill.md">Skill</a>
-              <a href="/money.bundle.js" download>Bundle</a>
-            </div>
-          </div>
-        </nav>
-
         <main className="pay-main">
           <div className="container">
             <div className="pay-header">

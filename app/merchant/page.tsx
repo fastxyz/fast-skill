@@ -551,7 +551,7 @@ export default function DemoPage() {
 
   return (
     <main style={{ minHeight: '100vh', padding: '7rem 1.5rem 4rem' }}>
-      <div style={{ maxWidth: 980, margin: '0 auto', display: 'grid', gap: '1.2rem' }}>
+      <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gap: '1.2rem' }}>
         <header style={{ display: 'grid', gap: '0.35rem' }}>
           <p style={{ fontSize: '0.7rem', letterSpacing: '0.16em', color: 'var(--text-3)', textTransform: 'uppercase' }}>
             Demo
@@ -570,136 +570,133 @@ export default function DemoPage() {
           </div>
         )}
 
-        <section style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem' }}>
-          <h2 style={{ fontSize: '0.95rem', marginBottom: '0.75rem' }}>Buyer Session</h2>
-          {loading ? (
-            <p style={{ color: 'var(--text-3)' }}>Loading session...</p>
-          ) : session ? (
-            <div style={{ display: 'grid', gap: '0.4rem', fontFamily: 'var(--font-mono), monospace', fontSize: '0.78rem' }}>
-              <div><span style={{ color: 'var(--text-3)' }}>session:</span> {session.sessionId}</div>
-              <div><span style={{ color: 'var(--text-3)' }}>buyer fast wallet:</span> {session.addressFast}</div>
-            </div>
-          ) : (
-            <p style={{ color: 'var(--text-3)' }}>No session yet.</p>
-          )}
-        </section>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '0.9rem', alignItems: 'start' }}>
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <section style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem' }}>
+              <h2 style={{ fontSize: '0.95rem', marginBottom: '0.75rem' }}>Buyer Session</h2>
+              {loading ? (
+                <p style={{ color: 'var(--text-3)' }}>Loading session...</p>
+              ) : session ? (
+                <div style={{ display: 'grid', gap: '0.4rem', fontFamily: 'var(--font-mono), monospace', fontSize: '0.78rem' }}>
+                  <div><span style={{ color: 'var(--text-3)' }}>session:</span> {session.sessionId}</div>
+                  <div><span style={{ color: 'var(--text-3)' }}>buyer fast wallet:</span> {session.addressFast}</div>
+                </div>
+              ) : (
+                <p style={{ color: 'var(--text-3)' }}>No session yet.</p>
+              )}
+            </section>
 
-        <section style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem' }}>
-          <h2 style={{ fontSize: '0.95rem', marginBottom: '0.75rem' }}>Merchant: Create Intent</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '0.8rem', alignItems: 'start' }}>
-            <div style={{ display: 'grid', gap: '0.65rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-                <label
-                  style={{
-                    display: 'grid',
-                    gap: '0.3rem',
-                    borderRadius: 8,
-                    padding: tourActive && tourStep === 'fill_fields' ? '0.35rem' : 0,
-                    outline: tourActive && tourStep === 'fill_fields' ? '1px solid #7dd3fc' : 'none',
-                  }}
-                >
-                  <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Service / Product</span>
-                  <input
-                    ref={serviceInputRef}
-                    value={serviceId}
-                    onChange={(e) => setServiceId(e.target.value)}
-                    placeholder="movie tickets"
-                    style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
-                  />
-                </label>
-                <label
-                  style={{
-                    display: 'grid',
-                    gap: '0.3rem',
-                    borderRadius: 8,
-                    padding: tourActive && tourStep === 'fill_fields' ? '0.35rem' : 0,
-                    outline: tourActive && tourStep === 'fill_fields' ? '1px solid #7dd3fc' : 'none',
-                  }}
-                >
-                  <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Amount (SET)</span>
-                  <input
-                    ref={amountInputRef}
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="2"
-                    type="number"
-                    min="0"
-                    step="any"
-                    style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
-                  />
-                </label>
-                <label style={{ display: 'grid', gap: '0.3rem' }}>
-                  <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Settlement Chain</span>
-                  <select
-                    value={settlementChain}
-                    onChange={(e) => setSettlementChain(e.target.value as SettlementChain)}
-                    style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
-                  >
-                    <option value="fast">Fast</option>
-                    <option value="arbitrum-sepolia">Arbitrum Sepolia (via OmniSet)</option>
-                  </select>
-                </label>
-                <button
-                  ref={createButtonRef}
-                  onClick={() => void createIntent()}
-                  disabled={busy || creatingIntent || !session}
-                  style={{
-                    background: 'var(--text)',
-                    color: 'var(--bg)',
-                    border: 0,
-                    borderRadius: 6,
-                    padding: '0.55rem 0.9rem',
-                    cursor: 'pointer',
-                    alignSelf: 'end',
-                    outline: tourActive && tourStep === 'create_intent' ? '1px solid #7dd3fc' : 'none',
-                    boxShadow: tourActive && tourStep === 'create_intent' ? '0 0 0 4px rgba(125, 211, 252, 0.25)' : 'none',
-                  }}
-                >
-                  {creatingIntent ? 'Creating...' : 'Create'}
-                </button>
+            <section style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem' }}>
+              <h2 style={{ fontSize: '0.95rem', marginBottom: '0.75rem' }}>Merchant: Create Intent</h2>
+              <div style={{ display: 'grid', gap: '0.8rem', alignItems: 'start' }}>
+                <div style={{ display: 'grid', gap: '0.65rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+                    <label
+                      style={{
+                        display: 'grid',
+                        gap: '0.3rem',
+                        borderRadius: 8,
+                        padding: tourActive && tourStep === 'fill_fields' ? '0.35rem' : 0,
+                        outline: tourActive && tourStep === 'fill_fields' ? '1px solid #7dd3fc' : 'none',
+                      }}
+                    >
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Service / Product</span>
+                      <input
+                        ref={serviceInputRef}
+                        value={serviceId}
+                        onChange={(e) => setServiceId(e.target.value)}
+                        placeholder="movie tickets"
+                        style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
+                      />
+                    </label>
+                    <label
+                      style={{
+                        display: 'grid',
+                        gap: '0.3rem',
+                        borderRadius: 8,
+                        padding: tourActive && tourStep === 'fill_fields' ? '0.35rem' : 0,
+                        outline: tourActive && tourStep === 'fill_fields' ? '1px solid #7dd3fc' : 'none',
+                      }}
+                    >
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Amount (SET)</span>
+                      <input
+                        ref={amountInputRef}
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="2"
+                        type="number"
+                        min="0"
+                        step="any"
+                        style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
+                      />
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.3rem' }}>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Settlement Chain</span>
+                      <select
+                        value={settlementChain}
+                        onChange={(e) => setSettlementChain(e.target.value as SettlementChain)}
+                        style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.65rem' }}
+                      >
+                        <option value="fast">Fast</option>
+                        <option value="arbitrum-sepolia">Arbitrum Sepolia (via OmniSet)</option>
+                      </select>
+                    </label>
+                    <button
+                      ref={createButtonRef}
+                      onClick={() => void createIntent()}
+                      disabled={busy || creatingIntent || !session}
+                      style={{
+                        background: 'var(--text)',
+                        color: 'var(--bg)',
+                        border: 0,
+                        borderRadius: 6,
+                        padding: '0.55rem 0.9rem',
+                        cursor: 'pointer',
+                        alignSelf: 'end',
+                        outline: tourActive && tourStep === 'create_intent' ? '1px solid #7dd3fc' : 'none',
+                        boxShadow: tourActive && tourStep === 'create_intent' ? '0 0 0 4px rgba(125, 211, 252, 0.25)' : 'none',
+                      }}
+                    >
+                      {creatingIntent ? 'Creating...' : 'Create'}
+                    </button>
+                  </div>
+                  <p style={{ color: 'var(--text-3)', fontSize: '0.76rem' }}>
+                    Expiry default: {defaults?.expiryMinutes ?? 15}m. Receiver reuse cooldown: {defaults?.receiverCooldownMinutes ?? 30}m.
+                    {' '}
+                    Auto-delivery: {defaults?.autoDeliveryEnabled === false ? 'off' : 'on'}
+                    {defaults?.autoDeliveryEnabled && (defaults.autoDeliveryDelayMs ?? 0) > 0
+                      ? ` (${Math.floor((defaults.autoDeliveryDelayMs ?? 0) / 1000)}s delay)`
+                      : ''}.
+                  </p>
+                </div>
               </div>
-              <p style={{ color: 'var(--text-3)', fontSize: '0.76rem' }}>
-                Expiry default: {defaults?.expiryMinutes ?? 15}m. Receiver reuse cooldown: {defaults?.receiverCooldownMinutes ?? 30}m.
-                {' '}
-                Auto-delivery: {defaults?.autoDeliveryEnabled === false ? 'off' : 'on'}
-                {defaults?.autoDeliveryEnabled && (defaults.autoDeliveryDelayMs ?? 0) > 0
-                  ? ` (${Math.floor((defaults.autoDeliveryDelayMs ?? 0) / 1000)}s delay)`
-                  : ''}.
-              </p>
-            </div>
-            <AgentFlowPanel
-              title="Agent Flow"
-              subtitle="Shared action-card system wired to merchant demo endpoints."
-              actions={merchantAgentActions}
-            />
-          </div>
-        </section>
+            </section>
 
-        <section style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem' }}>
-          <h2 style={{ fontSize: '0.95rem', marginBottom: '0.75rem' }}>
-            Intents ({intents.length}) • Active {activeIntents.length}
-          </h2>
+            <section style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem' }}>
+              <h2 style={{ fontSize: '0.95rem', marginBottom: '0.75rem' }}>
+                Intents ({intents.length}) • Active {activeIntents.length}
+              </h2>
 
-          {intents.length === 0 ? (
-            <p style={{ color: 'var(--text-3)' }}>No intents yet.</p>
-          ) : (
-            <div style={{ display: 'grid', gap: '0.9rem' }}>
-              {intents.map((intent, index) => {
-                const isTourLinkTarget = tourActive
-                  && tourStep === 'open_link'
-                  && (tourIntentId ? intent.intentId === tourIntentId : index === 0);
-                return (
-                  <article
-                    key={intent.intentId}
-                    style={{
-                      border: '1px solid var(--border)',
-                      borderRadius: 8,
-                      background: 'var(--code-bg)',
-                      padding: '0.9rem',
-                      display: 'grid',
-                      gap: '0.65rem',
-                    }}
-                  >
+              {intents.length === 0 ? (
+                <p style={{ color: 'var(--text-3)' }}>No intents yet.</p>
+              ) : (
+                <div style={{ display: 'grid', gap: '0.9rem' }}>
+                  {intents.map((intent, index) => {
+                    const isTourLinkTarget = tourActive
+                      && tourStep === 'open_link'
+                      && (tourIntentId ? intent.intentId === tourIntentId : index === 0);
+                    return (
+                      <article
+                        key={intent.intentId}
+                        style={{
+                          border: '1px solid var(--border)',
+                          borderRadius: 8,
+                          background: 'var(--code-bg)',
+                          padding: '0.9rem',
+                          display: 'grid',
+                          gap: '0.65rem',
+                        }}
+                      >
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                     <div style={{ display: 'grid', gap: '0.25rem' }}>
                       <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: '0.76rem', color: 'var(--text-3)' }}>
@@ -836,12 +833,19 @@ export default function DemoPage() {
                       ))}
                     </div>
                   )}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </div>
+          <AgentFlowPanel
+            title="Agent Flow"
+            subtitle="Shared action-card system wired to merchant demo endpoints."
+            actions={merchantAgentActions}
+          />
+        </div>
       </div>
       {tourActive && (
         <>
