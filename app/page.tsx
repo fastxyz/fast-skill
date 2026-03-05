@@ -59,13 +59,13 @@ export default async function Home() {
             <div className="install-block">
               <div className="install-text">
                 <code className="install-cmd">
-                  curl -s {baseUrl}/skill.md
+                  npx create-money-skill
                 </code>
                 <span className="install-hint">
-                  and follow the instructions to install money
+                  one command, that&apos;s it
                 </span>
               </div>
-              <CopyButton text={`curl -s ${baseUrl}/skill.md`} />
+              <CopyButton text="npx create-money-skill" />
             </div>
             <p className="section-note">v{version}. Two files. No dependencies.</p>
           </div>

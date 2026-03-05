@@ -19,12 +19,23 @@ Everything works out of the box — RPCs, token addresses, explorer URLs, all bu
 ## Install
 
 ```bash
+npx create-money-skill
+```
+
+That's it! One command installs everything to `~/.money/`.
+
+<details>
+<summary>Manual installation (alternative)</summary>
+
+```bash
 mkdir -p ~/.money
 curl -sL {{HOST}}/skill.md -o ~/.money/SKILL.md
 curl -sL {{HOST}}/money.bundle.js -o ~/.money/money.bundle.js
 curl -sL {{HOST}}/money.bundle.js.sha256 -o /tmp/money.sha256
 (cd ~/.money && shasum -a 256 -c /tmp/money.sha256) && rm -f /tmp/money.sha256
 ```
+
+</details>
 
 v{{VERSION}}. Two files. Integrity verified via SHA-256. No dependencies.
 
