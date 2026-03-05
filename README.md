@@ -1,4 +1,4 @@
-# money
+# FAST API
 
 Universal payment SDK for AI agents. Send tokens, swap, bridge cross-chain, check prices, sign messages across 13 blockchain chains — or any custom EVM chain. RPCs, token addresses, explorer URLs all built in. Zero config required.
 
@@ -14,12 +14,23 @@ Same pattern on every chain. Only the chain name and address format change.
 ## Install
 
 ```bash
+npx skills add Pi-Squared-Inc/fast-api
+```
+
+That's it! One command installs everything to `~/.money/`.
+
+<details>
+<summary>Manual installation (alternative)</summary>
+
+```bash
 mkdir -p ~/.money
-curl -sL https://money-alpha-khaki.vercel.app/skill.md -o ~/.money/SKILL.md
-curl -sL https://money-alpha-khaki.vercel.app/money.bundle.js -o ~/.money/money.bundle.js
-curl -sL https://money-alpha-khaki.vercel.app/money.bundle.js.sha256 -o /tmp/money.sha256
+curl -sL https://fast-api-xi-seven.vercel.app/skill.md -o ~/.money/SKILL.md
+curl -sL https://fast-api-xi-seven.vercel.app/money.bundle.js -o ~/.money/money.bundle.js
+curl -sL https://fast-api-xi-seven.vercel.app/money.bundle.js.sha256 -o /tmp/money.sha256
 (cd ~/.money && shasum -a 256 -c /tmp/money.sha256) && rm -f /tmp/money.sha256
 ```
+
+</details>
 
 Two files. Integrity verified via SHA-256. No dependencies.
 

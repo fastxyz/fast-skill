@@ -1,0 +1,18 @@
+{
+  "name": "fast-api-skill",
+  "version": "0.1.0",
+  "description": "Install the FAST API skill for AI agents - universal payments across 13 chains",
+  "bin": {
+    "fast-api-skill": "./bin/index.js"
+  },
+  "keywords": ["ai", "agent", "fast", "fastset", "payments", "crypto", "skill", "x402"],
+  "author": "Pi Squared",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Pi-Squared-Inc/fast-api"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

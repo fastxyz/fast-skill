@@ -1,5 +1,5 @@
 ---
-name: money
+name: fast-api
 version: {{VERSION}}
 description: >
   Universal payment SDK for AI agents. Send tokens, check balances, create payment links, swap tokens, bridge cross-chain,
@@ -12,11 +12,20 @@ description: >
 
 ---
 
-# MONEY SKILL
+# FAST API SKILL
 
 Everything works out of the box — RPCs, token addresses, explorer URLs, all built in for 13 chains, testnet and mainnet. No API keys or config files needed.
 
 ## Install
+
+```bash
+npx skills add Pi-Squared-Inc/fast-api
+```
+
+That's it! One command installs everything to `~/.money/`.
+
+<details>
+<summary>Manual installation (alternative)</summary>
 
 ```bash
 mkdir -p ~/.money
@@ -25,6 +34,8 @@ curl -sL {{HOST}}/money.bundle.js -o ~/.money/money.bundle.js
 curl -sL {{HOST}}/money.bundle.js.sha256 -o /tmp/money.sha256
 (cd ~/.money && shasum -a 256 -c /tmp/money.sha256) && rm -f /tmp/money.sha256
 ```
+
+</details>
 
 v{{VERSION}}. Two files. Integrity verified via SHA-256. No dependencies.
 

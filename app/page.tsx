@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { CopyButton } from './copy-button';
 
 const chains = [
-  { name: 'Fast', token: 'SET', format: 'set1...' },
+  { name: 'Fast', token: 'SET', format: 'fast1...' },
   { name: 'Base', token: 'ETH', format: '0x...' },
   { name: 'Ethereum', token: 'ETH', format: '0x...' },
   { name: 'Arbitrum', token: 'ETH', format: '0x...' },
@@ -32,7 +32,10 @@ export default async function Home() {
         <section className="hero">
           <div className="container">
             <p className="hero-label">Payment Skill for AI Agents</p>
-            <h1 className="hero-title">money</h1>
+            <h1 className="hero-title">
+              <img src="/fast-wordmark.svg" alt="FAST" className="hero-logo" />
+              {' '}API
+            </h1>
             <p className="hero-desc">
               Send, swap, bridge, and look up prices across 13 chains.
               <br />
@@ -59,51 +62,15 @@ export default async function Home() {
             <div className="install-block">
               <div className="install-text">
                 <code className="install-cmd">
-                  curl -s {baseUrl}/skill.md
+                  npx skills add Pi-Squared-Inc/fast-api
                 </code>
                 <span className="install-hint">
-                  and follow the instructions to install money
+                  one command, that&apos;s it
                 </span>
               </div>
-              <CopyButton text={`curl -s ${baseUrl}/skill.md`} />
+              <CopyButton text="npx skills add Pi-Squared-Inc/fast-api" />
             </div>
             <p className="section-note">v{version}. Two files. No dependencies.</p>
-          </div>
-        </section>
-
-        <div className="divider">
-          <span />
-        </div>
-
-        <section className="section">
-          <div className="container">
-            <h2 className="section-label">Three Steps</h2>
-            <div className="steps">
-              <div className="step">
-                <span className="step-n">1</span>
-                <div className="step-body">
-                  <span className="step-name">Setup</span>
-                   <code>{'await money.setup({ chain: "fast" })'}</code>
-                </div>
-              </div>
-              <div className="step">
-                <span className="step-n">2</span>
-                <div className="step-body">
-                  <span className="step-name">Balance</span>
-                   <code>{'await money.balance({ chain: "fast" })'}</code>
-                </div>
-              </div>
-              <div className="step">
-                <span className="step-n">3</span>
-                <div className="step-body">
-                  <span className="step-name">Send</span>
-                   <code>{'await money.send({ to: "set1...", amount: 10, chain: "fast" })'}</code>
-                </div>
-              </div>
-            </div>
-            <p className="section-note">
-              Same pattern on every chain. Only the name changes.
-            </p>
           </div>
         </section>
 
