@@ -5,7 +5,7 @@
 import { getChainConfig, getCustomChain } from './config.js';
 import { parseConfigKey, BUILT_IN_EXPLORERS } from './defaults.js';
 import { MoneyError } from './errors.js';
-import { getEvmAliases, getSolanaAliases } from './aliases.js';
+import { getEvmAliases, getFastAliases, getSolanaAliases } from './aliases.js';
 import { createFastAdapter } from './adapters/fast.js';
 import { createEvmAdapter } from './adapters/evm.js';
 import { createSolanaAdapter } from './adapters/solana.js';
@@ -53,7 +53,8 @@ export async function getAdapter(cacheKey: string): Promise<ChainAdapter> {
   let adapter: ChainAdapter;
 
   if (chain === 'fast') {
-    adapter = createFastAdapter(chainConfig.rpc, network);
+    const aliases = await getFastAliases(cacheKey);
+    adapter = createFastAdapter(chainConfig.rpc, network, aliases);
   } else if (EVM_CHAINS.includes(chain)) {
     const net = chainConfig.network === 'mainnet' ? 'mainnet' : 'testnet';
     const explorerUrl = BUILT_IN_EXPLORERS[chain]?.[net] ?? '';

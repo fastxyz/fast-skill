@@ -168,6 +168,54 @@ describe('createFastAdapter', () => {
       assert.equal(bal.token, hexTokenId);
     });
 
+    it('resolves named Fast token balances by on-chain token metadata', async () => {
+      const tokenId = [0xaa, 0xbb, ...Array(30).fill(0)];
+      globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+        const bodyText = typeof init?.body === 'string' ? init.body : '';
+        const parsed = JSON.parse(bodyText);
+
+        if (parsed.method === 'proxy_getAccountInfo') {
+          return {
+            ok: true,
+            json: async () => ({
+              jsonrpc: '2.0',
+              id: 1,
+              result: {
+                balance: 'de0b6b3a7640000',
+                token_balance: [[tokenId, '0xbc614e']], // 12.345678 with 6 decimals
+                next_nonce: 0,
+              },
+            }),
+          } as Response;
+        }
+
+        if (parsed.method === 'proxy_getTokenInfo') {
+          return {
+            ok: true,
+            json: async () => ({
+              jsonrpc: '2.0',
+              id: 1,
+              result: {
+                requested_token_metadata: [
+                  [tokenId, { token_name: 'SETUSDC', decimals: 6 }],
+                ],
+              },
+            }),
+          } as Response;
+        }
+
+        throw new Error(`Unexpected RPC method: ${parsed.method}`);
+      }) as FetchFn;
+
+      const adapter = createFastAdapter(FAKE_RPC);
+      const keyfile = path.join(tmpDir, 'keys', 'fast.json');
+      const { address } = await adapter.setupWallet(keyfile);
+
+      const bal = await adapter.getBalance(address, 'SETUSDC');
+      assert.equal(bal.amount, '12.345678');
+      assert.equal(bal.token, 'SETUSDC');
+    });
+
     it('returns "0" when hex token ID is not found in token_balance', async () => {
       const { fetch } = capturingFetch({
         balance: 'de0b6b3a7640000',
@@ -264,6 +312,80 @@ describe('createFastAdapter', () => {
 
       assert.ok(callCount >= 2, 'should have called RPC at least twice');
       assert.equal(result.fee, '0.01');
+    });
+
+    it('sends a named non-native Fast token using token metadata decimals and token_id', async () => {
+      const tokenId = [0xcc, 0xdd, ...Array(30).fill(0)];
+      let submittedTx: unknown = null;
+
+      globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+        const bodyText = typeof init?.body === 'string' ? init.body : '';
+        const parsed = JSON.parse(bodyText);
+
+        if (parsed.method === 'proxy_getAccountInfo') {
+          return {
+            ok: true,
+            json: async () => ({
+              jsonrpc: '2.0',
+              id: 1,
+              result: {
+                balance: 'de0b6b3a7640000',
+                token_balance: [[tokenId, '0x5f5e100']], // 100 with 6 decimals
+                next_nonce: 7,
+              },
+            }),
+          } as Response;
+        }
+
+        if (parsed.method === 'proxy_getTokenInfo') {
+          return {
+            ok: true,
+            json: async () => ({
+              jsonrpc: '2.0',
+              id: 1,
+              result: {
+                requested_token_metadata: [
+                  [tokenId, { token_name: 'SETUSDC', decimals: 6 }],
+                ],
+              },
+            }),
+          } as Response;
+        }
+
+        if (parsed.method === 'proxy_submitTransaction') {
+          submittedTx = parsed.params.transaction;
+          return {
+            ok: true,
+            json: async () => ({
+              jsonrpc: '2.0',
+              id: 1,
+              result: { Success: { envelope: { hash: 'abc123' }, signatures: [] } },
+            }),
+          } as Response;
+        }
+
+        throw new Error(`Unexpected RPC method: ${parsed.method}`);
+      }) as FetchFn;
+
+      const adapter = createFastAdapter(FAKE_RPC);
+      const keyfile = path.join(tmpDir, 'keys', 'fast.json');
+      const { address: fromAddr } = await adapter.setupWallet(keyfile);
+      const keyfile2 = path.join(tmpDir, 'keys', 'fast2.json');
+      const { address: toAddr } = await adapter.setupWallet(keyfile2);
+
+      const result = await adapter.send({
+        from: fromAddr,
+        to: toAddr,
+        amount: '1.5',
+        token: 'SETUSDC',
+        keyfile,
+      });
+
+      assert.ok(result.txHash.startsWith('0x'));
+      assert.ok(submittedTx, 'expected proxy_submitTransaction payload');
+      const typedTx = submittedTx as { claim?: { TokenTransfer?: { token_id?: number[]; amount?: string } } };
+      assert.deepEqual(typedTx.claim?.TokenTransfer?.token_id, tokenId);
+      assert.equal(typedTx.claim?.TokenTransfer?.amount, '16e360'); // 1.5 * 10^6
     });
   });
 

@@ -103,3 +103,16 @@ export async function getSolanaAliases(
   }
   return result;
 }
+
+/** Get Fast aliases for a config key — used by registry.ts to build the adapter's token map. */
+export async function getFastAliases(
+  cacheKey: string,
+): Promise<Record<string, { address: string; decimals: number }>> {
+  const all = await loadAliases();
+  const entries = all[cacheKey] ?? {};
+  const result: Record<string, { address: string; decimals: number }> = {};
+  for (const [name, tc] of Object.entries(entries)) {
+    if (tc.address) result[name] = { address: tc.address, decimals: tc.decimals ?? 18 };
+  }
+  return result;
+}
