@@ -6,9 +6,24 @@ type TurnstileResponse = {
 };
 
 const DEFAULT_WAITLIST_ENDPOINT = 'https://sheetdb.io/api/v1/k795qny6qgb93';
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]']);
+const ENABLED_VALUES = new Set(['1', 'true', 'yes', 'on']);
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isLocalRequest(hostname: string): boolean {
+  return LOCAL_HOSTNAMES.has(hostname.toLowerCase());
+}
+
+function isCaptchaEnabled(): boolean {
+  const flag = (
+    process.env.WAITLIST_CAPTCHA_ENABLED ||
+    process.env.NEXT_PUBLIC_WAITLIST_CAPTCHA_ENABLED ||
+    ''
+  ).trim().toLowerCase();
+  return ENABLED_VALUES.has(flag);
 }
 
 export async function POST(request: NextRequest) {
@@ -16,8 +31,10 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as { email?: string; token?: string };
     const email = body.email?.trim() ?? '';
     const token = body.token?.trim() ?? '';
+    const localBypass = process.env.NODE_ENV === 'development' || isLocalRequest(request.nextUrl.hostname);
+    const captchaRequired = isCaptchaEnabled() && !localBypass;
 
-    if (!email || !token) {
+    if (!email || (!token && captchaRequired)) {
       return NextResponse.json(
         { message: 'Email and captcha token are required.' },
         { status: 400 },
@@ -28,7 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Please provide a valid email address.' }, { status: 400 });
     }
 
-    if (process.env.NODE_ENV !== 'development') {
+    if (captchaRequired) {
       const secret = process.env.TURNSTILE_SECRET_KEY;
       if (!secret) {
         return NextResponse.json({ message: 'Captcha is not configured on the server.' }, { status: 500 });

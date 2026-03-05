@@ -6,6 +6,11 @@ import { DemoSidebarShell } from './components/demo-sidebar-shell';
 import { ThemeToggle } from './components/theme-toggle';
 import './globals.css';
 
+const ENABLED_VALUES = new Set(['1', 'true', 'yes', 'on']);
+const WAITLIST_CAPTCHA_ENABLED = ENABLED_VALUES.has(
+  (process.env.NEXT_PUBLIC_WAITLIST_CAPTCHA_ENABLED || '').trim().toLowerCase(),
+);
+
 const generalSans = localFont({
   src: [
     { path: '../public/fonts/GeneralSans-Light.otf', weight: '300' },
@@ -60,10 +65,12 @@ export default function RootLayout({
         <Script id="theme-init" strategy="beforeInteractive">
           {THEME_INIT_SCRIPT}
         </Script>
-        <Script
-          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-          strategy="afterInteractive"
-        />
+        {WAITLIST_CAPTCHA_ENABLED ? (
+          <Script
+            src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+            strategy="afterInteractive"
+          />
+        ) : null}
         <nav className="nav">
           <div className="nav-inner">
             <a href="/" className="nav-wordmark">

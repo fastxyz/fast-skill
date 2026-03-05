@@ -15,20 +15,24 @@ declare global {
 
 type WaitlistStatus = 'idle' | 'loading' | 'success' | 'error';
 
-const IS_DEV = process.env.NODE_ENV === 'development';
+const ENABLED_VALUES = new Set(['1', 'true', 'yes', 'on']);
+const CAPTCHA_FLAG = (process.env.NEXT_PUBLIC_WAITLIST_CAPTCHA_ENABLED || '').trim().toLowerCase();
+const WAITLIST_CAPTCHA_ENABLED = ENABLED_VALUES.has(CAPTCHA_FLAG);
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || '';
+const CAPTCHA_ENABLED = WAITLIST_CAPTCHA_ENABLED && TURNSTILE_SITE_KEY.length > 0;
 const CAPTCHA_TIMEOUT_MS = 10000;
 
 export default function WaitlistPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<WaitlistStatus>('idle');
-  const [message, setMessage] = useState('Dummy waitlist input for now.');
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(IS_DEV ? 'dev-bypass' : null);
+  const [message, setMessage] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(CAPTCHA_ENABLED ? null : 'local-bypass');
   const [captchaLoadFailed, setCaptchaLoadFailed] = useState(false);
   const turnstileRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (IS_DEV) return;
+    if (!CAPTCHA_ENABLED) return;
 
     let renderAttempted = false;
     let intervalId: ReturnType<typeof setInterval> | undefined;
@@ -48,7 +52,7 @@ export default function WaitlistPage() {
 
       try {
         widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
-          sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+          sitekey: TURNSTILE_SITE_KEY,
           callback: (token: string) => {
             setTurnstileToken(token);
             setCaptchaLoadFailed(false);
@@ -105,7 +109,7 @@ export default function WaitlistPage() {
       return;
     }
 
-    if (!turnstileToken) {
+    if (CAPTCHA_ENABLED && !turnstileToken) {
       setStatus('error');
       setMessage(
         captchaLoadFailed
@@ -165,10 +169,12 @@ export default function WaitlistPage() {
                 {status === 'loading' ? 'Submitting...' : 'Join the waitlist'}
               </button>
             </form>
-            <p className={`waitlist-note${status === 'error' ? ' is-error' : ''}${status === 'success' ? ' is-success' : ''}`}>
-              {message}
-            </p>
-            {!IS_DEV && status !== 'success' ? (
+            {message ? (
+              <p className={`waitlist-note${status === 'error' ? ' is-error' : ''}${status === 'success' ? ' is-success' : ''}`}>
+                {message}
+              </p>
+            ) : null}
+            {CAPTCHA_ENABLED && status !== 'success' ? (
               <div className="waitlist-captcha-wrap">
                 <div ref={turnstileRef} />
               </div>
