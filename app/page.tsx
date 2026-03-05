@@ -25,7 +25,7 @@ export default function Home() {
 
       </main>
 
-      <a href="/merchant" className="landing-next-link">
+      <a href="/send" className="landing-next-link">
         <span className="landing-next-label">Next</span>
         <span className="landing-next-title">
           Getting Started <span aria-hidden="true">→</span>

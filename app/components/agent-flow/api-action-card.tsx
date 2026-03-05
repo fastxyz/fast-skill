@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 
 type SnippetTab = 'curl' | 'javascript' | 'raw_json';
 
@@ -80,6 +81,15 @@ function toRawRequestJson(request: AgentActionRequest): string {
   });
 }
 
+const codeBlockStyle: CSSProperties = {
+  margin: 0,
+  fontSize: '0.72rem',
+  lineHeight: 1.45,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+  wordBreak: 'break-word',
+};
+
 export function ApiActionCard(props: ApiActionCardProps) {
   const [activeTab, setActiveTab] = useState<SnippetTab>('curl');
   const [copiedKey, setCopiedKey] = useState<'url' | 'curl' | 'javascript' | 'raw_json' | null>(null);
@@ -145,9 +155,20 @@ export function ApiActionCard(props: ApiActionCardProps) {
             {props.integrationMode}
           </span>
         </div>
-        <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: '0.71rem', color: 'var(--text-2)' }}>
-          <span style={{ color: '#93c5fd' }}>{props.request.method.toUpperCase()}</span>{' '}
-          <code>{props.request.url}</code>
+        <div
+          style={{
+            fontFamily: 'var(--font-mono), monospace',
+            fontSize: '0.71rem',
+            color: 'var(--text-2)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.3rem',
+            maxWidth: '100%',
+            minWidth: 0,
+          }}
+        >
+          <span style={{ color: '#93c5fd', whiteSpace: 'nowrap' }}>{props.request.method.toUpperCase()}</span>
+          <code style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{props.request.url}</code>
         </div>
       </header>
 
@@ -210,7 +231,7 @@ export function ApiActionCard(props: ApiActionCardProps) {
         </button>
       </div>
 
-      <pre style={{ margin: 0, fontSize: '0.72rem', lineHeight: 1.45, overflowX: 'auto' }}>{activeSnippet}</pre>
+      <pre style={codeBlockStyle}>{activeSnippet}</pre>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
         <button
@@ -262,7 +283,7 @@ export function ApiActionCard(props: ApiActionCardProps) {
           {tryItResult !== null && (
             <details>
               <summary style={{ cursor: 'pointer', fontSize: '0.73rem', color: 'var(--text-2)' }}>Try it response</summary>
-              <pre style={{ margin: '0.45rem 0 0', fontSize: '0.72rem', lineHeight: 1.45, overflowX: 'auto' }}>{toJson(tryItResult)}</pre>
+              <pre style={{ ...codeBlockStyle, marginTop: '0.45rem' }}>{toJson(tryItResult)}</pre>
             </details>
           )}
         </div>
@@ -272,7 +293,7 @@ export function ApiActionCard(props: ApiActionCardProps) {
         <summary style={{ cursor: 'pointer', fontSize: '0.73rem', color: 'var(--text-2)' }}>
           Example success response
         </summary>
-        <pre style={{ margin: '0.45rem 0 0', fontSize: '0.72rem', lineHeight: 1.45, overflowX: 'auto' }}>{toJson(props.successExample)}</pre>
+        <pre style={{ ...codeBlockStyle, marginTop: '0.45rem' }}>{toJson(props.successExample)}</pre>
       </details>
 
       <details>
@@ -285,7 +306,7 @@ export function ApiActionCard(props: ApiActionCardProps) {
               <div style={{ fontSize: '0.69rem', color: 'var(--text-3)' }}>
                 {failure.status ? `HTTP ${failure.status}` : 'Failure'}
               </div>
-              <pre style={{ margin: '0.2rem 0 0', fontSize: '0.71rem', lineHeight: 1.45, overflowX: 'auto' }}>{toJson(failure.payload)}</pre>
+              <pre style={{ ...codeBlockStyle, marginTop: '0.2rem', fontSize: '0.71rem' }}>{toJson(failure.payload)}</pre>
               {failure.note && (
                 <div style={{ marginTop: '0.2rem', fontSize: '0.7rem', color: 'var(--text-3)' }}>
                   Recovery: {failure.note}

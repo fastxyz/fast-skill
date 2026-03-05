@@ -709,10 +709,28 @@ code { font-family: var(--font-mono), 'SF Mono', 'Consolas', monospace; }
   opacity: 0.9;
 }
 
+.waitlist-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .waitlist-note {
   margin-top: 0.62rem;
   font-size: 0.85rem;
   color: rgba(214, 223, 235, 0.72);
+}
+
+.waitlist-note.is-error {
+  color: #fca5a5;
+}
+
+.waitlist-note.is-success {
+  color: #86efac;
+}
+
+.waitlist-captcha-wrap {
+  margin-top: 0.7rem;
+  max-width: 560px;
 }
 
 .copy-btn {

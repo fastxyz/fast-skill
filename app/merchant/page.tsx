@@ -554,13 +554,13 @@ export default function DemoPage() {
       <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gap: '1.2rem' }}>
         <header style={{ display: 'grid', gap: '0.35rem' }}>
           <p style={{ fontSize: '0.7rem', letterSpacing: '0.16em', color: 'var(--text-3)', textTransform: 'uppercase' }}>
-            Demo
+            PAYMENTS
           </p>
           <h1 style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontWeight: 400 }}>
-            Merchant + Buyer Flow Demo
+            Merchant Dashboard
           </h1>
           <p style={{ color: 'var(--text-2)', fontSize: '0.92rem' }}>
-            This merchant dashboard creates payment intents...
+            Create payment pages for humans or agents.
           </p>
         </header>
 
@@ -571,7 +571,7 @@ export default function DemoPage() {
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '0.9rem', alignItems: 'start' }}>
-          <div style={{ display: 'grid', gap: '1rem' }}>
+          <div style={{ display: 'grid', gap: '1rem', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem' }}>
             <header style={{ display: 'grid', gap: '0.2rem' }}>
               <h2 style={{ margin: 0, fontSize: '0.95rem' }}>Human Flow</h2>
               <p style={{ margin: 0, color: 'var(--text-3)', fontSize: '0.74rem' }}>

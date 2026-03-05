@@ -364,13 +364,13 @@ export default function SignatureLabPage() {
       <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gap: '1rem' }}>
         <header style={{ display: 'grid', gap: '0.35rem' }}>
           <p style={{ fontSize: '0.7rem', letterSpacing: '0.16em', color: 'var(--text-3)', textTransform: 'uppercase' }}>
-            Demo
+            CRYPTO
           </p>
           <h1 style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontWeight: 400 }}>
-            Signature Lab
+            Sign Transactions
           </h1>
           <p style={{ color: 'var(--text-2)', fontSize: '0.92rem' }}>
-            Sign and verify challenge messages for agent auth proofs across Fast, EVM, and Solana-style signature formats.
+            Sign and verify messages on Fast
           </p>
         </header>
 

@@ -39,13 +39,13 @@ function toApiPayUrl(rawUrl: string, origin: string): string {
 function toLocalShareUrl(rawUrl: string, origin: string): string {
   try {
     const parsed = new URL(rawUrl);
-    return `${origin}/pay${parsed.search}`;
+    return `${origin}/receive${parsed.search}`;
   } catch {
     try {
       const parsedRelative = new URL(rawUrl, origin);
-      return `${origin}/pay${parsedRelative.search}`;
+      return `${origin}/receive${parsedRelative.search}`;
     } catch {
-      return `${origin}/pay`;
+      return `${origin}/receive`;
     }
   }
 }

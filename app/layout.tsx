@@ -60,6 +60,10 @@ export default function RootLayout({
         <Script id="theme-init" strategy="beforeInteractive">
           {THEME_INIT_SCRIPT}
         </Script>
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+          strategy="afterInteractive"
+        />
         <nav className="nav">
           <div className="nav-inner">
             <a href="/" className="nav-wordmark">

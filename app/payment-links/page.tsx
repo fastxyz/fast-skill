@@ -297,7 +297,7 @@ export default function PaymentLinksDashboardPage() {
 
   const agentActions = useMemo<ApiActionCardProps[]>(() => [
     {
-      title: 'Create Payment Link',
+      title: 'Create Invoice Link',
       integrationMode: 'SDK method',
       request: {
         method: 'CALL',
@@ -310,7 +310,7 @@ export default function PaymentLinksDashboardPage() {
         },
       },
       successExample: latestCreated?.link ?? {
-        url: `${origin || 'https://example.local'}/pay?receiver=${encodeURIComponent(createRequestPayload.receiver)}&amount=${createRequestPayload.amount}&chain=${createRequestPayload.chain}`,
+        url: `${origin || 'https://example.local'}/receive?receiver=${encodeURIComponent(createRequestPayload.receiver)}&amount=${createRequestPayload.amount}&chain=${createRequestPayload.chain}`,
         payment_id: 'pay_...',
         chain: createRequestPayload.chain,
         amount: createRequestPayload.amount,
@@ -334,7 +334,7 @@ export default function PaymentLinksDashboardPage() {
       },
     },
     {
-      title: 'List Payment Links',
+      title: 'List Invoice Links',
       integrationMode: 'SDK method',
       request: {
         method: 'CALL',
@@ -430,13 +430,13 @@ export default function PaymentLinksDashboardPage() {
       <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gap: '1rem' }}>
         <header style={{ display: 'grid', gap: '0.35rem' }}>
           <p style={{ fontSize: '0.7rem', letterSpacing: '0.16em', color: 'var(--text-3)', textTransform: 'uppercase' }}>
-            Demo
+            PAYMENTS
           </p>
           <h1 style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontWeight: 400 }}>
-            Payment Link Lifecycle Dashboard
+            Invoice Links
           </h1>
           <p style={{ color: 'var(--text-2)', fontSize: '0.92rem' }}>
-            Create payment links, preview `/api/pay` markdown requests, and inspect locally tracked created/paid lifecycle events.
+            Create invoice links for services or products
           </p>
         </header>
 
@@ -461,7 +461,7 @@ export default function PaymentLinksDashboardPage() {
             </header>
 
             <section style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '0.7rem', display: 'grid', gap: '0.5rem' }}>
-              <h3 style={{ margin: 0, fontSize: '0.84rem' }}>Create Link</h3>
+              <h3 style={{ margin: 0, fontSize: '0.84rem' }}>Create Invoice Link</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.45rem' }}>
                 <label style={{ display: 'grid', gap: '0.2rem' }}>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Chain</span>
@@ -530,7 +530,7 @@ export default function PaymentLinksDashboardPage() {
                 disabled={state === 'creating'}
                 style={{ border: 0, borderRadius: 6, padding: '0.45rem 0.7rem', background: 'var(--text)', color: 'var(--bg)', cursor: 'pointer', width: 'fit-content' }}
               >
-                {state === 'creating' ? 'Creating...' : 'Create Payment Link'}
+                {state === 'creating' ? 'Creating...' : 'Create Invoice Link'}
               </button>
             </section>
 
@@ -564,7 +564,7 @@ export default function PaymentLinksDashboardPage() {
                 </div>
               ) : (
                 <p style={{ margin: 0, color: 'var(--text-3)', fontSize: '0.74rem' }}>
-                  No payment link created yet in this dashboard session.
+                  No invoice link created yet in this dashboard session.
                 </p>
               )}
             </section>
@@ -646,7 +646,7 @@ export default function PaymentLinksDashboardPage() {
               <div style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>{note || 'No note.'}</div>
 
               {entries.length === 0 ? (
-                <p style={{ margin: 0, color: 'var(--text-3)', fontSize: '0.74rem' }}>No payment link entries match current filters.</p>
+                <p style={{ margin: 0, color: 'var(--text-3)', fontSize: '0.74rem' }}>No invoice link entries match current filters.</p>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>

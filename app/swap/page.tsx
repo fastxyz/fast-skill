@@ -445,10 +445,10 @@ export default function SwapQuoteTerminalPage() {
       <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gap: '1rem' }}>
         <header style={{ display: 'grid', gap: '0.35rem' }}>
           <p style={{ fontSize: '0.7rem', letterSpacing: '0.16em', color: 'var(--text-3)', textTransform: 'uppercase' }}>
-            Demo
+            CRYPTO
           </p>
           <h1 style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontWeight: 400 }}>
-            Swap + Quote Terminal
+            Swap Tokens
           </h1>
           <p style={{ color: 'var(--text-2)', fontSize: '0.92rem' }}>
             Quote first, inspect pricing risk fields, then execute swap with explicit mainnet parameters.

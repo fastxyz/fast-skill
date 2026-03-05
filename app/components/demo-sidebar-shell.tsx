@@ -5,13 +5,17 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const DEMO_LINKS = [
-  { href: '/pay', label: 'Pay' },
-  { href: '/merchant', label: 'Merchant Demo' },
-  { href: '/paywall', label: 'Paywall Studio' },
-  { href: '/payment-links', label: 'Payment Links' },
-  { href: '/swap', label: 'Swap Terminal' },
-  { href: '/bridge', label: 'Bridge Console' },
-  { href: '/sign', label: 'Signature Lab' },
+  { href: '/send', label: 'Send' },
+  { href: '/receive', label: 'Receive' },
+  { href: '/payment-links', label: 'Invoice Links' },
+  { href: '/merchant', label: 'Merchant Dashboard' },
+  { href: '/paywall', label: 'Content Paywall' },
+];
+
+const CRYPTO_LINKS = [
+  { href: '/swap', label: 'Swap' },
+  { href: '/bridge', label: 'Bridge' },
+  { href: '/sign', label: 'Sign' },
 ] as const;
 
 const TOOL_LINKS = [
@@ -22,6 +26,8 @@ const TOOL_LINKS = [
 ] as const;
 
 const SIDEBAR_ROUTE_PREFIXES = [
+  '/send',
+  '/receive',
   '/pay',
   '/merchant',
   '/paywall',
@@ -54,9 +60,24 @@ export function DemoSidebarShell({ children }: { children: ReactNode }) {
     <div className="demo-shell">
       <aside className="demo-sidebar" aria-label="Demo navigation">
         <div className="demo-sidebar-group">
-          <p className="demo-sidebar-label">Demos</p>
+          <p className="demo-sidebar-label">AGENT PAYMENTS</p>
           <nav className="demo-sidebar-nav">
             {DEMO_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`demo-sidebar-link${pathMatches(pathname, link.href) ? ' is-active' : ''}`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        <div className="demo-sidebar-group">
+          <p className="demo-sidebar-label">Crypto</p>
+          <nav className="demo-sidebar-nav">
+            {CRYPTO_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
