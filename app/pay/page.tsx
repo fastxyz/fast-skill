@@ -487,8 +487,6 @@ export default function PayPage() {
           <div className="container footer-inner">
             <span className="footer-credit">Fast Protocol</span>
             <nav className="footer-nav">
-              <a href="/merchant">Merchant Demo</a>
-              <a href="/pay">Pay</a>
               <a href="/skill.md">Skill</a>
               <a href="/money.bundle.js" download>Bundle</a>
             </nav>

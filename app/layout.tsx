@@ -83,8 +83,6 @@ export default function RootLayout({
                   </div>
                 </details>
                 <a href="/pay">Pay</a>
-                <a href="/skill.md">Skill</a>
-                <a href="/money.bundle.js" download>Bundle</a>
               </div>
               <ThemeToggle />
             </div>

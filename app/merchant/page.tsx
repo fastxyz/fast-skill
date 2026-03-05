@@ -572,6 +572,13 @@ export default function DemoPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '0.9rem', alignItems: 'start' }}>
           <div style={{ display: 'grid', gap: '1rem' }}>
+            <header style={{ display: 'grid', gap: '0.2rem' }}>
+              <h2 style={{ margin: 0, fontSize: '0.95rem' }}>Human Flow</h2>
+              <p style={{ margin: 0, color: 'var(--text-3)', fontSize: '0.74rem' }}>
+                Session setup, intent creation, buyer payment simulation, and merchant delivery controls.
+              </p>
+            </header>
+
             <section style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem' }}>
               <h2 style={{ fontSize: '0.95rem', marginBottom: '0.75rem' }}>Buyer Session</h2>
               {loading ? (
@@ -842,7 +849,7 @@ export default function DemoPage() {
           </div>
           <AgentFlowPanel
             title="Agent Flow"
-            subtitle="Shared action-card system wired to merchant demo endpoints."
+            subtitle="Copy-ready API calls for creating intents, submitting buyer payments, and delivering service."
             actions={merchantAgentActions}
           />
         </div>
