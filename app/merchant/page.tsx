@@ -505,14 +505,14 @@ export default function DemoPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
-      throw err;
+      return null;
     } finally {
       setCreatingIntent(false);
       setBusy(false);
     }
   }
 
-  async function payIntent(intentId: string, customAmount?: string): Promise<PayIntentResponse> {
+  async function payIntent(intentId: string, customAmount?: string): Promise<PayIntentResponse | null> {
     try {
       setBusy(true);
       setError('');
@@ -525,13 +525,13 @@ export default function DemoPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
-      throw err;
+      return null;
     } finally {
       setBusy(false);
     }
   }
 
-  async function deliverIntent(intentId: string): Promise<DeliverIntentResponse> {
+  async function deliverIntent(intentId: string): Promise<DeliverIntentResponse | null> {
     try {
       setBusy(true);
       setError('');
@@ -543,7 +543,7 @@ export default function DemoPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
-      throw err;
+      return null;
     } finally {
       setBusy(false);
     }

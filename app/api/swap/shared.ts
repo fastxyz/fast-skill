@@ -8,7 +8,7 @@ export const SwapRequestBody = z.object({
   from: z.string().min(1),
   to: z.string().min(1),
   amount: z.union([z.string(), z.number()]),
-  network: Network.default('mainnet'),
+  network: Network.default('testnet'),
   slippageBps: z.number().int().min(1).max(5000).optional(),
   provider: z.string().min(1).optional(),
 });
