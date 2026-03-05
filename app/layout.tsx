@@ -48,10 +48,15 @@ export default function RootLayout({
               <a href="/swap">Swap Terminal</a>
               <a href="/bridge">Bridge Console</a>
               <a href="/sign">Signature Lab</a>
-              <a href="/providers">Providers</a>
-              <a href="/tokens">Tokens</a>
-              <a href="/utils">Utilities</a>
-              <a href="/errors">Errors</a>
+              <details className="nav-dropdown">
+                <summary>Tools</summary>
+                <div className="nav-dropdown-menu">
+                  <a href="/providers">Providers</a>
+                  <a href="/tokens">Tokens</a>
+                  <a href="/utils">Utilities</a>
+                  <a href="/errors">Errors</a>
+                </div>
+              </details>
               <a href="/pay">Pay</a>
               <a href="/skill.md">Skill</a>
               <a href="/money.bundle.js" download>Bundle</a>
