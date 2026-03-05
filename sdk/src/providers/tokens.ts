@@ -170,6 +170,13 @@ export function resolveTokenAddress(token: string, chain: string): { address: st
 
   const upper = token.toUpperCase();
 
+  // Fast native token aliases
+  if (chain === 'fast' && (upper === 'SET' || upper === 'FAST')) {
+    const addr = NATIVE_TOKEN_ADDRESS.fast;
+    const dec = NATIVE_TOKEN_DECIMALS.fast;
+    return { address: addr, decimals: dec };
+  }
+
   // Native token for this chain
   const nativeSymbol = NATIVE_TOKEN_SYMBOL[chain];
   if (nativeSymbol && upper === nativeSymbol) {

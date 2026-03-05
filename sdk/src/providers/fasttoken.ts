@@ -77,6 +77,11 @@ function isNativeSetToken(hex: string): boolean {
   return clean.toLowerCase().padEnd(64, '0') === SET_TOKEN_HEX;
 }
 
+function isNativeFastSymbol(token: string): boolean {
+  const upper = token.toUpperCase();
+  return upper === 'SET' || upper === 'FAST';
+}
+
 /** Get the Fast RPC URL from config, falling back to the default */
 async function getFastRpcUrl(): Promise<string> {
   try {
@@ -119,7 +124,7 @@ export const fastTokenProvider: PriceProvider = {
 
   async getPrice({ token }) {
     // Fast tokens don't have DEX price data
-    if (isNativeSetToken(token) || token.toUpperCase() === 'SET') {
+    if (isNativeSetToken(token) || isNativeFastSymbol(token)) {
       return { price: '0', symbol: 'SET', name: 'SET' };
     }
 
@@ -143,7 +148,7 @@ export const fastTokenProvider: PriceProvider = {
 
   async getTokenInfo({ token }) {
     // Handle native SET token (RPC returns null for it)
-    if (isNativeSetToken(token) || token.toUpperCase() === 'SET') {
+    if (isNativeSetToken(token) || isNativeFastSymbol(token)) {
       return {
         name: 'SET',
         symbol: 'SET',

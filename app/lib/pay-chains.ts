@@ -10,7 +10,7 @@ export const CHAINS: ChainOption[] = [
   {
     name: 'Fast',
     value: 'fast',
-    token: 'SET',
+    token: 'FAST',
     placeholder: 'set1...',
     sampleReceiver: 'set1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq',
   },

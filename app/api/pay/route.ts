@@ -28,7 +28,7 @@ const CHAIN_PROTOCOLS: Record<string, string> = {
 };
 
 const NATIVE_TOKENS: Record<string, string> = {
-  fast: 'SET',
+  fast: 'FAST',
   base: 'ETH',
   ethereum: 'ETH',
   arbitrum: 'ETH',

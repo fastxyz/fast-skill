@@ -36,6 +36,11 @@ const EXPLORER_BASE = 'https://explorer.fastset.xyz/txs';
 export const SET_TOKEN_ID = new Uint8Array(32);
 SET_TOKEN_ID.set([0xfa, 0x57, 0x5e, 0x70], 0);
 
+function isNativeFastTokenSymbol(token: string): boolean {
+  const upper = token.toUpperCase();
+  return upper === 'SET' || upper === 'FAST';
+}
+
 // ---------------------------------------------------------------------------
 // BCS Type Definitions — must match on-chain types exactly
 // ---------------------------------------------------------------------------
@@ -286,11 +291,11 @@ export function createFastAdapter(rpcUrl: string, network: string = 'testnet'): 
 
       if (!result) return { amount: '0', token: tok };
 
-      // Native SET balance
-      if (tok === 'SET') {
+      // Native Fast token balance (supports SET and FAST aliases)
+      if (isNativeFastTokenSymbol(tok)) {
         const hexBalance = result.balance ?? '0';
         const amount = fromHex(hexBalance, FAST_DECIMALS);
-        return { amount, token: tok };
+        return { amount, token: tok.toUpperCase() };
       }
 
       // Non-native token: search token_balance array by hex token ID

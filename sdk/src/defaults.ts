@@ -10,13 +10,13 @@ import type { ChainConfig, NetworkType } from './types.js';
 export const DEFAULT_CHAIN_CONFIGS: Record<string, Record<NetworkType, ChainConfig>> = {
   fast: {
     testnet: {
-      rpc: 'https://proxy.fastset.xyz',
+      rpc: 'https://api.fast.xyz/proxy',
       keyfile: '~/.money/keys/fast.json',
       network: 'testnet',
       defaultToken: 'SET',
     },
     mainnet: {
-      rpc: 'https://proxy.fastset.xyz',
+      rpc: 'https://api.fast.xyz/proxy',
       keyfile: '~/.money/keys/fast.json',
       network: 'mainnet',
       defaultToken: 'SET',

@@ -1558,6 +1558,7 @@ export const money = {
 
 /** Known native token decimals */
 const NATIVE_DECIMALS: Record<string, number> = {
+  FAST: 18,
   SET: 18,
   ETH: 18,
   SOL: 9,
@@ -1588,9 +1589,14 @@ async function resolveDecimals(opts: {
 
   const { key, chainConfig } = await requireChainConfig(opts.chain, opts.network);
   const tokenName = opts.token ?? chainConfig.defaultToken;
+  const tokenUpper = tokenName.toUpperCase();
+
+  if (opts.chain === 'fast' && (tokenUpper === 'SET' || tokenUpper === 'FAST')) {
+    return 18;
+  }
 
   // Check native token defaults first
-  const nativeDec = NATIVE_DECIMALS[tokenName];
+  const nativeDec = NATIVE_DECIMALS[tokenUpper];
   if (tokenName === chainConfig.defaultToken && nativeDec !== undefined) {
     return nativeDec;
   }

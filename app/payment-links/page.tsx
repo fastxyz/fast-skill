@@ -66,7 +66,7 @@ type ListLinksResponse = {
 };
 
 const CHAIN_OPTIONS: ChainOption[] = [
-  { label: 'Fast', value: 'fast', token: 'SET', sampleReceiver: 'set1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq' },
+  { label: 'Fast', value: 'fast', token: 'FAST', sampleReceiver: 'set1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq' },
   { label: 'Base', value: 'base', token: 'ETH', sampleReceiver: '0x1111111111111111111111111111111111111111' },
   { label: 'Ethereum', value: 'ethereum', token: 'ETH', sampleReceiver: '0x1111111111111111111111111111111111111111' },
   { label: 'Arbitrum', value: 'arbitrum', token: 'ETH', sampleReceiver: '0x1111111111111111111111111111111111111111' },

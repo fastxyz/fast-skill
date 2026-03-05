@@ -1,8 +1,8 @@
 import type { PaymentLinkProviderAdapter } from './types';
 import type { SettlementChain } from '../types';
 
-function settlementToken(chain: SettlementChain): 'SET' | 'WSET' {
-  return chain === 'fast' ? 'SET' : 'WSET';
+function settlementToken(chain: SettlementChain): 'FAST' | 'WSET' {
+  return chain === 'fast' ? 'FAST' : 'WSET';
 }
 
 function settlementNetwork(_chain: SettlementChain): 'testnet' {

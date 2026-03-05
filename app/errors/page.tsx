@@ -82,8 +82,8 @@ const SCENARIOS: ScenarioDef[] = [
     expectedCode: 'INSUFFICIENT_BALANCE',
     failureMethod: 'money.send',
     summary: 'Attempts to send an intentionally huge amount after setup.',
-    failRequest: { chain: 'fast', network: 'testnet', amount: '999999999999999999', token: 'SET' },
-    recoveryRequest: { chain: 'fast', network: 'testnet', amount: '1', token: 'SET' },
+    failRequest: { chain: 'fast', network: 'testnet', amount: '999999999999999999', token: 'FAST' },
+    recoveryRequest: { chain: 'fast', network: 'testnet', amount: '1', token: 'FAST' },
     failSnippet: [
       'const wallet = await money.setup({ chain: "fast", network: "testnet" });',
       'await money.send({',

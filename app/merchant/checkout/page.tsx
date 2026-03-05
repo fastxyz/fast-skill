@@ -81,7 +81,7 @@ function CheckoutContent() {
   const backLinkRef = useRef<HTMLAnchorElement | null>(null);
 
   const settlementToken = useMemo(
-    () => (intent?.settlementChain === 'fast' ? 'SET' : 'WSET'),
+    () => (intent?.settlementChain === 'fast' ? 'FAST' : 'WSET'),
     [intent],
   );
 
@@ -226,7 +226,7 @@ function CheckoutContent() {
           <p style={{ fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: THEME.accent }}>
             {THEME.label}
           </p>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 600 }}>Pay {intent?.requestedAmount ?? '...'} SET</h1>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 600 }}>Pay {intent?.requestedAmount ?? '...'} FAST</h1>
           <p style={{ fontSize: '0.85rem', color: '#d1d5db' }}>
             Demo checkout for buyer-side flow. Clicking pay submits the on-chain payment on Fast (or Fast + OmniSet bridge for Arbitrum settlement).
           </p>

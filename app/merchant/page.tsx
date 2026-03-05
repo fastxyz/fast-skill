@@ -626,7 +626,7 @@ export default function DemoPage() {
                         outline: tourActive && tourStep === 'fill_fields' ? '1px solid #7dd3fc' : 'none',
                       }}
                     >
-                      <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Amount (SET)</span>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>Amount (FAST)</span>
                       <input
                         ref={amountInputRef}
                         value={amount}
@@ -711,7 +711,7 @@ export default function DemoPage() {
                         {intent.intentId}
                       </div>
                       <div style={{ fontSize: '0.9rem' }}>
-                        Service <code>{intent.serviceId}</code> • Request <strong>{intent.requestedAmount} SET</strong>
+                        Service <code>{intent.serviceId}</code> • Request <strong>{intent.requestedAmount} FAST</strong>
                       </div>
                     </div>
                     <div
@@ -774,9 +774,9 @@ export default function DemoPage() {
                       Expires in: <strong>{countdownLabel(intent.expiresAt)}</strong>
                     </div>
                     <div>
-                      Paid: <strong>{intent.paidAmountSource ?? '0'} {intent.settlementChain === 'fast' ? 'SET' : 'WSET'}</strong>
+                      Paid: <strong>{intent.paidAmountSource ?? '0'} {intent.settlementChain === 'fast' ? 'FAST' : 'WSET'}</strong>
                       {intent.overpaid && intent.overpayAmount
-                        ? ` (overpaid by ${intent.overpayAmount} ${intent.settlementChain === 'fast' ? 'SET' : 'WSET'})`
+                        ? ` (overpaid by ${intent.overpayAmount} ${intent.settlementChain === 'fast' ? 'FAST' : 'WSET'})`
                         : ''}
                     </div>
                     <div>
@@ -809,7 +809,7 @@ export default function DemoPage() {
                             }}
                             style={{ border: '1px solid var(--border)', borderRadius: 5, padding: '0.4rem 0.7rem', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}
                           >
-                            Buyer Overpays +1 SET
+                            Buyer Overpays +1 FAST
                           </button>
                         </div>
                       </details>

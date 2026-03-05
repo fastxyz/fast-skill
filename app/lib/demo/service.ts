@@ -34,7 +34,7 @@ const AUTO_DELIVER_DELAY_MS = (() => {
   const parsed = Number(process.env.DEMO_AUTO_DELIVER_DELAY_MS ?? '0');
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 })();
-const FAST_RPC_URL = process.env.FAST_RPC_URL?.trim() || 'https://proxy.fastset.xyz';
+const FAST_RPC_URL = process.env.FAST_RPC_URL?.trim() || 'https://api.fast.xyz/proxy';
 const ARBITRUM_RPC_URL =
   process.env.ARBITRUM_SEPOLIA_RPC_URL?.trim() || 'https://sepolia-rollup.arbitrum.io/rpc';
 const ARBITRUM_EXPLORER_URL =
@@ -559,7 +559,7 @@ async function reconcileIntent(intent: PaymentIntentRecord, nowMs: number): Prom
       if (intent.settlementChain === 'fast') {
         appendEvent(intent.intentId, {
           kind: 'source_payment_verified',
-          details: `Payment verified on Fast. Received ${toAmount(paidRaw)} SET.`,
+          details: `Payment verified on Fast. Received ${toAmount(paidRaw)} FAST.`,
         });
       } else {
         appendEvent(intent.intentId, {
@@ -576,7 +576,7 @@ async function reconcileIntent(intent: PaymentIntentRecord, nowMs: number): Prom
         appendEvent(intent.intentId, {
           kind: 'overpayment_detected',
           details: intent.settlementChain === 'fast'
-            ? `Overpayment detected: +${toAmount(paidRaw - requestedRaw)} SET.`
+            ? `Overpayment detected: +${toAmount(paidRaw - requestedRaw)} FAST.`
             : `Overpayment detected on destination: +${toAmount(paidRaw - requestedRaw)} WSET.`,
         });
       }
@@ -726,8 +726,8 @@ export async function createPaymentIntent(params: {
   appendEvent(intent.intentId, {
     kind: 'intent_created',
     details: settlementChain === 'fast'
-      ? `Payment requested: ${intent.requestedAmount} SET on Fast. Expires in ${expiryMinutes} minutes.`
-      : `Payment requested: ${intent.requestedAmount} SET via Fast->Arbitrum. Receiver expects WSET on Arbitrum Sepolia. Expires in ${expiryMinutes} minutes.`,
+      ? `Payment requested: ${intent.requestedAmount} FAST on Fast. Expires in ${expiryMinutes} minutes.`
+      : `Payment requested: ${intent.requestedAmount} FAST via Fast->Arbitrum. Receiver expects WSET on Arbitrum Sepolia. Expires in ${expiryMinutes} minutes.`,
   });
 
   ensureVerifierStarted();
@@ -839,13 +839,13 @@ export async function payIntent(params: {
     details: usedFaucetRetry
       ? (
           intent.settlementChain === 'fast'
-            ? `Buyer wallet auto-funded from faucet, then submitted ${payAmount} SET. tx=${txHash}`
-            : `Buyer wallet auto-funded from faucet, then submitted Fast payment + OmniSet bridge for ${payAmount} SET. source_tx=${txHash}`
+            ? `Buyer wallet auto-funded from faucet, then submitted ${payAmount} FAST. tx=${txHash}`
+            : `Buyer wallet auto-funded from faucet, then submitted Fast payment + OmniSet bridge for ${payAmount} FAST. source_tx=${txHash}`
         )
       : (
           intent.settlementChain === 'fast'
-            ? `Buyer submitted payment of ${payAmount} SET. tx=${txHash}`
-            : `Buyer submitted Fast payment + OmniSet bridge for ${payAmount} SET. source_tx=${txHash}`
+            ? `Buyer submitted payment of ${payAmount} FAST. tx=${txHash}`
+            : `Buyer submitted Fast payment + OmniSet bridge for ${payAmount} FAST. source_tx=${txHash}`
         ),
   });
   if (intent.settlementChain !== 'fast') {

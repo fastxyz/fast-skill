@@ -79,7 +79,7 @@ type GetResponse = {
 };
 
 const CHAIN_OPTIONS: ChainOption[] = [
-  { label: 'Fast', value: 'fast', nativeToken: 'SET', addressHint: 'set1...' },
+  { label: 'Fast', value: 'fast', nativeToken: 'FAST', addressHint: 'set1...' },
   { label: 'Ethereum', value: 'ethereum', nativeToken: 'ETH', addressHint: '0x...' },
   { label: 'Base', value: 'base', nativeToken: 'ETH', addressHint: '0x...' },
   { label: 'Arbitrum', value: 'arbitrum', nativeToken: 'ETH', addressHint: '0x...' },

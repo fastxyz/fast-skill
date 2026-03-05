@@ -94,7 +94,7 @@ type TimelineEntry = {
 };
 
 const CHAIN_OPTIONS: ChainOption[] = [
-  { label: 'Fast', value: 'fast', defaultToken: 'SET' },
+  { label: 'Fast', value: 'fast', defaultToken: 'FAST' },
   { label: 'Ethereum', value: 'ethereum', defaultToken: 'ETH' },
   { label: 'Base', value: 'base', defaultToken: 'ETH' },
   { label: 'Arbitrum', value: 'arbitrum', defaultToken: 'ETH' },
@@ -140,7 +140,7 @@ export default function BridgeConsolePage() {
   const [error, setError] = useState('');
 
   const [fromChain, setFromChain] = useState('fast');
-  const [fromToken, setFromToken] = useState('SET');
+  const [fromToken, setFromToken] = useState('FAST');
   const [toChain, setToChain] = useState('arbitrum');
   const [toToken, setToToken] = useState('WSET');
   const [amount, setAmount] = useState('10');
