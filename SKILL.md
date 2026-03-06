@@ -86,7 +86,7 @@ const custom = await f.balance({ token: '0xfa575e70...' });
 
 ### `send(params)`
 
-Send tokens to a `fast1...` address. Defaults to native SET.
+Send tokens to a `fast1...` address. Defaults to native SET. Custom tokens can be passed by a held symbol like `SETUSDC` or by raw hex token ID.
 
 ```typescript
 const tx = await f.send({ to: 'fast1abc...', amount: '10.0' });
@@ -100,7 +100,7 @@ const tx2 = await f.send({ to: 'fast1abc...', amount: '5.0', token: '0x1e7449...
 |---|---|---|---|
 | `to` | `string` | yes | Recipient `fast1...` address |
 | `amount` | `string` | yes | Human-readable amount (e.g. `'1.5'`) |
-| `token` | `string` | no | Hex token ID. Defaults to native SET. |
+| `token` | `string` | no | Held token symbol like `SETUSDC`, or a hex token ID. Defaults to native SET. |
 
 ### `sign(params)`
 
@@ -133,7 +133,7 @@ const list = await f.tokens();
 
 ### `tokenInfo(params)`
 
-Get on-chain metadata for a token by hex ID.
+Get on-chain metadata for a token by held symbol or hex token ID.
 
 ```typescript
 const info = await f.tokenInfo({ token: '0xfa575e70...' });
@@ -211,7 +211,7 @@ try {
 | `CHAIN_NOT_CONFIGURED` | Call `f.setup()`, retry. |
 | `TX_FAILED` | Wait 5s, retry once. If still fails, stop. |
 | `INVALID_ADDRESS` | Do not retry. Confirm address with user. |
-| `TOKEN_NOT_FOUND` | Verify the hex token ID is correct. |
+| `TOKEN_NOT_FOUND` | Verify the held token symbol or hex token ID is correct. |
 | `INVALID_PARAMS` | Read `e.note` for correct call shape. |
 | `UNSUPPORTED_OPERATION` | Check `e.note` — operation may not be available. |
 
@@ -233,7 +233,7 @@ try {
 - **Decimals**: 18
 - **Token ID**: `0xfa575e70...` (32-byte hex)
 
-Custom tokens are referenced by their 32-byte hex token ID in `balance()`, `send()`, and `tokenInfo()`.
+Custom tokens can be referenced by a held symbol like `SETUSDC`, or by their 32-byte hex token ID in `balance()`, `send()`, and `tokenInfo()`.
 
 ### Factory Function
 

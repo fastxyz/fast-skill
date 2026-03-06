@@ -17,7 +17,7 @@ import {
   verifyEd25519,
 } from './keys.js';
 import { getKeysDir, setChainConfig } from './config.js';
-import { FAST_CHAIN_CONFIGS, configKey } from './defaults.js';
+import { FAST_CHAIN_CONFIGS, configKey, resolveKnownFastToken } from './defaults.js';
 import { rpcCall } from './rpc.js';
 import {
   TransactionBcs,
@@ -33,6 +33,38 @@ import { toHex, fromHex } from './utils.js';
 import type { FastClient, NetworkType } from './types.js';
 
 const DEFAULT_TOKEN = 'SET';
+const HEX_TOKEN_PATTERN = /^(0x)?[0-9a-fA-F]+$/;
+
+type FastAccountInfo = {
+  balance?: string;
+  token_balance?: Array<[number[], string]>;
+  next_nonce?: number;
+} | null;
+
+type FastTokenMetadata = {
+  token_name?: string;
+  decimals?: number;
+  total_supply?: string;
+  admin?: number[];
+  mints?: number[][];
+};
+
+type FastTokenInfoResponse = {
+  requested_token_metadata?: Array<[number[], FastTokenMetadata | null]>;
+} | null;
+
+function isNativeFastToken(token: string): boolean {
+  const upper = token.toUpperCase();
+  return upper === 'SET' || upper === 'FAST';
+}
+
+function tokenIdToHex(tokenId: number[] | Uint8Array): string {
+  return Buffer.from(new Uint8Array(tokenId)).toString('hex').toLowerCase();
+}
+
+function stripHexPrefix(hex: string): string {
+  return hex.startsWith('0x') || hex.startsWith('0X') ? hex.slice(2) : hex;
+}
 
 /**
  * Create a Fast chain client.
@@ -61,6 +93,85 @@ export function fast(opts?: { network?: NetworkType }): FastClient {
     }
   }
 
+  async function fetchAccountInfo(pubkey: Uint8Array): Promise<FastAccountInfo> {
+    return (await rpcCall(rpcUrl, 'proxy_getAccountInfo', {
+      address: pubkey,
+      token_balances_filter: [],
+      state_key_filter: null,
+      certificate_by_nonce: null,
+    })) as FastAccountInfo;
+  }
+
+  function buildTokenBalanceMap(accountInfo: FastAccountInfo): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const [tokenId, balance] of accountInfo?.token_balance ?? []) {
+      map.set(tokenIdToHex(tokenId), stripHexPrefix(balance));
+    }
+    return map;
+  }
+
+  async function fetchTokenMetadata(tokenIds: Uint8Array[]): Promise<Map<string, FastTokenMetadata>> {
+    const uniq = new Map<string, Uint8Array>();
+    for (const tokenId of tokenIds) {
+      const key = tokenIdToHex(tokenId);
+      if (!uniq.has(key)) {
+        uniq.set(key, tokenId);
+      }
+    }
+    if (uniq.size === 0) {
+      return new Map();
+    }
+
+    const result = (await rpcCall(rpcUrl, 'proxy_getTokenInfo', {
+      token_ids: [...uniq.values()],
+    })) as FastTokenInfoResponse;
+
+    const metadata = new Map<string, FastTokenMetadata>();
+    for (const [tokenId, meta] of result?.requested_token_metadata ?? []) {
+      if (!meta) {
+        continue;
+      }
+      metadata.set(tokenIdToHex(tokenId), meta);
+    }
+    return metadata;
+  }
+
+  async function resolveNamedToken(
+    accountInfo: FastAccountInfo,
+    token: string,
+  ): Promise<{ tokenId: Uint8Array; decimals: number; symbol: string; rawBalance: string } | null> {
+    const upper = token.toUpperCase();
+    const balances = buildTokenBalanceMap(accountInfo);
+    const tokenIds = (accountInfo?.token_balance ?? []).map(([tokenId]) => new Uint8Array(tokenId));
+
+    const metadata = await fetchTokenMetadata(tokenIds);
+    for (const tokenId of tokenIds) {
+      const key = tokenIdToHex(tokenId);
+      const meta = metadata.get(key);
+      if (!meta?.token_name || meta.token_name.toUpperCase() !== upper) {
+        continue;
+      }
+      return {
+        tokenId,
+        decimals: meta.decimals ?? FAST_DECIMALS,
+        symbol: meta.token_name,
+        rawBalance: balances.get(key) ?? '0',
+      };
+    }
+
+    const known = resolveKnownFastToken(token);
+    if (known) {
+      return {
+        tokenId: hexToTokenId(known.tokenId),
+        decimals: known.decimals,
+        symbol: known.symbol,
+        rawBalance: '0',
+      };
+    }
+
+    return null;
+  }
+
   const client: FastClient = {
     get address(): string | null {
       return _address;
@@ -73,7 +184,11 @@ export function fast(opts?: { network?: NetworkType }): FastClient {
       try {
         const existing = await loadKeyfile(_keyfilePath);
         _address = pubkeyToAddress(existing.publicKey);
-      } catch {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes('ENOENT')) {
+          throw error;
+        }
         const keypair = await generateEd25519Key();
         await saveKeyfile(_keyfilePath, keypair);
         _address = pubkeyToAddress(keypair.publicKey);
@@ -101,37 +216,39 @@ export function fast(opts?: { network?: NetworkType }): FastClient {
         return { amount: '0', token: tok };
       }
 
-      const result = (await rpcCall(rpcUrl, 'proxy_getAccountInfo', {
-        address: pubkey,
-        token_balances_filter: null,
-        state_key_filter: null,
-        certificate_by_nonce: null,
-      })) as {
-        balance?: string;
-        token_balance?: Array<[number[], string]>;
-      } | null;
+      const result = await fetchAccountInfo(pubkey);
 
       if (!result) return { amount: '0', token: tok };
 
       // Native SET balance
-      if (tok === DEFAULT_TOKEN) {
+      if (isNativeFastToken(tok)) {
         const hexBalance = result.balance ?? '0';
-        return { amount: fromHex(hexBalance, FAST_DECIMALS), token: tok };
+        return { amount: fromHex(hexBalance, FAST_DECIMALS), token: tok.toUpperCase() };
       }
 
-      // Non-native token: search by hex token ID
-      const isHex = /^(0x)?[0-9a-fA-F]+$/.test(tok);
-      if (isHex) {
+      // Non-native token by raw token ID
+      if (HEX_TOKEN_PATTERN.test(tok)) {
         const tokenIdBytes = hexToTokenId(tok);
         const entry = result.token_balance?.find(([tid]) => tokenIdEquals(tid, tokenIdBytes));
         if (!entry) return { amount: '0', token: tok };
         const [, bal] = entry;
         const rawBalance = bal.startsWith('0x') || bal.startsWith('0X') ? bal.slice(2) : bal;
-        return { amount: fromHex(rawBalance, FAST_DECIMALS), token: tok };
+        const tokenKey = tokenIdToHex(tokenIdBytes);
+        const metadata = await fetchTokenMetadata([tokenIdBytes]);
+        const decimals = metadata.get(tokenKey)?.decimals ?? FAST_DECIMALS;
+        return { amount: fromHex(rawBalance, decimals), token: tok };
+      }
+
+      const resolved = await resolveNamedToken(result, tok);
+      if (resolved) {
+        return {
+          amount: fromHex(resolved.rawBalance, resolved.decimals),
+          token: resolved.symbol,
+        };
       }
 
       throw new FastError('TOKEN_NOT_FOUND', `Token '${tok}' not found on Fast chain`, {
-        note: 'Use the token hex address directly:\n  await f.balance({ token: "0x..." })',
+        note: 'Use a held token symbol like "SETUSDC" or pass the hex token ID directly:\n  await f.balance({ token: "0x..." })',
       });
     },
 
@@ -146,16 +263,22 @@ export function fast(opts?: { network?: NetworkType }): FastClient {
       let tokenId: Uint8Array = SET_TOKEN_ID;
       let decimals = FAST_DECIMALS;
 
-      if (params.token && params.token.toUpperCase() !== DEFAULT_TOKEN) {
-        tokenId = hexToTokenId(params.token);
-        const tokenInfo = (await rpcCall(rpcUrl, 'proxy_getTokenInfo', {
-          token_ids: [tokenId],
-        })) as {
-          requested_token_metadata?: Array<[number[], { decimals: number } | null]>;
-        } | null;
-        const meta = tokenInfo?.requested_token_metadata?.[0]?.[1];
-        if (meta) {
-          decimals = meta.decimals;
+      if (params.token && !isNativeFastToken(params.token)) {
+        const accountInfo = await fetchAccountInfo(addressToPubkey(_address!));
+
+        if (HEX_TOKEN_PATTERN.test(params.token)) {
+          tokenId = hexToTokenId(params.token);
+          const metadata = await fetchTokenMetadata([tokenId]);
+          decimals = metadata.get(tokenIdToHex(tokenId))?.decimals ?? FAST_DECIMALS;
+        } else {
+          const resolved = await resolveNamedToken(accountInfo, params.token);
+          if (!resolved) {
+            throw new FastError('TOKEN_NOT_FOUND', `Token '${params.token}' not found on Fast chain`, {
+              note: 'Use a held token symbol like "SETUSDC" or pass the hex token ID directly:\n  await f.send({ to: "fast1...", amount: "1", token: "0x..." })',
+            });
+          }
+          tokenId = resolved.tokenId;
+          decimals = resolved.decimals;
         }
       }
 
@@ -181,7 +304,7 @@ export function fast(opts?: { network?: NetworkType }): FastClient {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes('InsufficientFunding') || msg.includes('insufficient')) {
           throw new FastError('INSUFFICIENT_BALANCE', msg, {
-            note: 'Fund your wallet with testnet tokens, then retry.',
+            note: 'Fund your Fast wallet with SET or SETUSDC, then retry.',
           });
         }
         throw new FastError('TX_FAILED', msg, {
@@ -202,12 +325,7 @@ export function fast(opts?: { network?: NetworkType }): FastClient {
         return await withKey<{ txHash: string; certificate: unknown }>(
           _keyfilePath!,
           async (keypair) => {
-            const accountInfo = (await rpcCall(rpcUrl, 'proxy_getAccountInfo', {
-              address: senderPubkey,
-              token_balances_filter: null,
-              state_key_filter: null,
-              certificate_by_nonce: null,
-            })) as { next_nonce: number } | null;
+            const accountInfo = (await fetchAccountInfo(senderPubkey)) as { next_nonce?: number } | null;
 
             const nonce = accountInfo?.next_nonce ?? 0;
 
@@ -242,6 +360,11 @@ export function fast(opts?: { network?: NetworkType }): FastClient {
       } catch (err: unknown) {
         if (err instanceof FastError) throw err;
         const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('InsufficientFunding') || msg.includes('insufficient')) {
+          throw new FastError('INSUFFICIENT_BALANCE', msg, {
+            note: 'Fund your Fast wallet with SET or SETUSDC, then retry.',
+          });
+        }
         throw new FastError('TX_FAILED', msg, {
           note: 'Wait 5 seconds, then retry.',
         });
@@ -406,10 +529,11 @@ export function fast(opts?: { network?: NetworkType }): FastClient {
       minters?: string[];
     }> {
       const tok = params.token;
+      const upper = tok.toUpperCase();
 
       // Native SET token — RPC returns null for it, so handle locally
-      const isSet = tok.toUpperCase() === 'SET'
-        || tokenIdEquals(hexToTokenId(tok.startsWith('0x') ? tok : `0x${tok}`), SET_TOKEN_ID);
+      const isSet = isNativeFastToken(tok)
+        || (HEX_TOKEN_PATTERN.test(tok) && tokenIdEquals(hexToTokenId(tok), SET_TOKEN_ID));
       if (isSet) {
         return {
           name: 'SET',
@@ -419,38 +543,55 @@ export function fast(opts?: { network?: NetworkType }): FastClient {
         };
       }
 
+      let tokenIdBytes: Uint8Array;
+      if (HEX_TOKEN_PATTERN.test(tok)) {
+        tokenIdBytes = hexToTokenId(tok);
+      } else {
+        const known = resolveKnownFastToken(tok);
+        if (known) {
+          tokenIdBytes = hexToTokenId(known.tokenId);
+        } else {
+          ensureSetup();
+          const accountInfo = await fetchAccountInfo(addressToPubkey(_address!));
+          const resolved = await resolveNamedToken(accountInfo, upper);
+          if (!resolved) {
+            throw new FastError('TOKEN_NOT_FOUND', `Token "${tok}" not found on Fast chain`, {
+              note: 'Call setup() first for symbol lookup, or provide a valid hex token ID.\n  Example: await f.tokenInfo({ token: "0x1e74..." })',
+            });
+          }
+          tokenIdBytes = resolved.tokenId;
+        }
+      }
+
       // Query on-chain metadata
-      const tokenIdBytes = hexToTokenId(tok);
       const result = (await rpcCall(rpcUrl, 'proxy_getTokenInfo', {
         token_ids: [tokenIdBytes],
-      })) as {
-        requested_token_metadata?: Array<[number[], {
-          token_name: string;
-          decimals: number;
-          total_supply: string;
-          admin: number[];
-          mints: number[][];
-        } | null]>;
-      } | null;
+      })) as FastTokenInfoResponse;
 
       const entry = result?.requested_token_metadata?.[0];
       if (!entry?.[1]) {
         throw new FastError('TOKEN_NOT_FOUND', `Token "${tok}" not found on Fast chain`, {
-          note: 'Provide a valid hex token ID.\n  Example: await f.tokenInfo({ token: "0x1e74..." })',
+          note: 'Provide a held token symbol like "SETUSDC", or a valid hex token ID.\n  Example: await f.tokenInfo({ token: "0x1e74..." })',
         });
       }
 
       const [tokenIdRaw, meta] = entry;
       const tidHex = `0x${Buffer.from(new Uint8Array(tokenIdRaw)).toString('hex')}`;
+      const name = meta.token_name ?? tok;
+      const decimals = meta.decimals ?? FAST_DECIMALS;
+      const admin = meta.admin
+        ? `0x${Buffer.from(new Uint8Array(meta.admin)).toString('hex')}`
+        : undefined;
+      const minters = meta.mints?.map((m) => `0x${Buffer.from(new Uint8Array(m)).toString('hex')}`);
 
       return {
-        name: meta.token_name,
-        symbol: meta.token_name,
+        name,
+        symbol: name,
         address: tidHex,
-        decimals: meta.decimals,
-        totalSupply: meta.total_supply,
-        admin: `0x${Buffer.from(new Uint8Array(meta.admin)).toString('hex')}`,
-        minters: meta.mints.map((m) => `0x${Buffer.from(new Uint8Array(m)).toString('hex')}`),
+        decimals,
+        ...(meta.total_supply ? { totalSupply: meta.total_supply } : {}),
+        ...(admin ? { admin } : {}),
+        ...(minters ? { minters } : {}),
       };
     },
 

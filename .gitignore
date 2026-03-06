@@ -10,3 +10,5 @@ AGENTS.md
 .pnpm-store/
 fastset-x402-demo/
 .money-runtime/
+.fast-runtime/
+.fast-runtime-env/

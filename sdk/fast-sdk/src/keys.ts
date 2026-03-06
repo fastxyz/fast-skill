@@ -19,6 +19,51 @@ ed.etc.sha512Sync = (...msgs: Uint8Array[]) => sha512(
   msgs.length === 1 ? msgs[0] : new Uint8Array(msgs.reduce((a, m) => { const r = new Uint8Array(a.length + m.length); r.set(a); r.set(m, a.length); return r; }, new Uint8Array(0)))
 );
 
+const PRIVATE_KEY_HEX_PATTERN = /^(0x)?[0-9a-fA-F]{64}$/;
+
+function normalizeEnvPrivateKey(value: string): string {
+  const trimmed = value.trim();
+  if (!PRIVATE_KEY_HEX_PATTERN.test(trimmed)) {
+    throw new Error('MONEY_FAST_PRIVATE_KEY must be a 32-byte hex string');
+  }
+  return trimmed.startsWith('0x') || trimmed.startsWith('0X')
+    ? trimmed.slice(2).toLowerCase()
+    : trimmed.toLowerCase();
+}
+
+async function keypairFromPrivateKey(
+  privateKey: string,
+): Promise<{ publicKey: string; privateKey: string }> {
+  const normalized = normalizeEnvPrivateKey(privateKey);
+  const privKeyBuf = Buffer.from(normalized, 'hex');
+  try {
+    const publicKey = await ed.getPublicKeyAsync(privKeyBuf);
+    return {
+      publicKey: Buffer.from(publicKey).toString('hex'),
+      privateKey: normalized,
+    };
+  } finally {
+    privKeyBuf.fill(0);
+  }
+}
+
+async function seedKeyfileFromEnvIfConfigured(keyPath: string): Promise<boolean> {
+  const envPrivateKey = process.env.MONEY_FAST_PRIVATE_KEY?.trim();
+  if (!envPrivateKey) {
+    return false;
+  }
+
+  const keypair = await keypairFromPrivateKey(envPrivateKey);
+  try {
+    await saveKeyfile(keyPath, keypair);
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+      throw error;
+    }
+  }
+  return true;
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -49,8 +94,18 @@ export async function loadKeyfile(
   try {
     raw = await readFile(resolved, 'utf-8');
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to read keyfile at ${resolved}: ${msg}`);
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      const seeded = await seedKeyfileFromEnvIfConfigured(resolved);
+      if (seeded) {
+        raw = await readFile(resolved, 'utf-8');
+      } else {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(`Failed to read keyfile at ${resolved}: ${msg}`);
+      }
+    } else {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to read keyfile at ${resolved}: ${msg}`);
+    }
   }
   const parsed = JSON.parse(raw) as Record<string, unknown>;
   if (typeof parsed.publicKey !== 'string' || typeof parsed.privateKey !== 'string') {

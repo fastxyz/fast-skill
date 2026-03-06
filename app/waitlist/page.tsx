@@ -188,9 +188,7 @@ export default function WaitlistPage() {
           <span className="footer-credit">Fast.xyz</span>
           <nav className="footer-nav">
             <a href="/skill.md">Skill</a>
-            <a href="/money.bundle.js" download>
-              Bundle
-            </a>
+            <a href="/receive">Receive</a>
           </nav>
         </div>
       </footer>

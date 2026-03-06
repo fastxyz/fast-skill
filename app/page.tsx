@@ -22,10 +22,9 @@ export default function Home() {
             </span>
           </div>
         </section>
-
       </main>
 
-      <a href="/send" className="landing-next-link">
+      <a href="/receive" className="landing-next-link">
         <span className="landing-next-label">Next</span>
         <span className="landing-next-title">
           Getting Started <span aria-hidden="true">→</span>
@@ -37,9 +36,7 @@ export default function Home() {
           <span className="footer-credit">Fast.xyz</span>
           <nav className="footer-nav">
             <a href="/skill.md">Skill</a>
-            <a href="/money.bundle.js" download>
-              Bundle
-            </a>
+            <a href="/receive">Receive</a>
           </nav>
         </div>
       </footer>

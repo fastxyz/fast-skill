@@ -22,9 +22,9 @@ export interface FastConfig {
 export interface FastClient {
   /** Create or load a wallet, persist config. Must be called before other methods. */
   setup(): Promise<{ address: string }>;
-  /** Get balance for native SET or a specific token (hex token ID) */
+  /** Get balance for native SET, a held custom token symbol like SETUSDC, or a hex token ID */
   balance(opts?: { token?: string }): Promise<{ amount: string; token: string }>;
-  /** Send tokens to an address. Defaults to native SET; pass token hex ID for custom tokens. */
+  /** Send tokens to an address. Defaults to native SET; custom tokens can be passed by held symbol or hex token ID. */
   send(params: { to: string; amount: string; token?: string }): Promise<{ txHash: string; explorerUrl: string }>;
   /** Sign a message with the wallet's Ed25519 key */
   sign(params: { message: string | Uint8Array }): Promise<{ signature: string; address: string }>;
@@ -32,7 +32,7 @@ export interface FastClient {
   verify(params: { message: string | Uint8Array; signature: string; address: string }): Promise<{ valid: boolean }>;
   /** List all tokens held on-chain with balances (queries the chain directly) */
   tokens(): Promise<Array<{ symbol: string; address: string; balance: string; decimals: number }>>;
-  /** Get on-chain metadata for a token by hex ID */
+  /** Get on-chain metadata for a token by held symbol or hex token ID */
   tokenInfo(params: { token: string }): Promise<{
     name: string;
     symbol: string;

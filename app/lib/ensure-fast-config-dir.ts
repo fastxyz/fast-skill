@@ -13,7 +13,7 @@ function normalizePath(input: string): string {
 async function canUseDir(dir: string): Promise<boolean> {
   try {
     await fs.mkdir(dir, { recursive: true, mode: 0o700 });
-    const probe = path.join(dir, `.money-probe-${process.pid}-${Date.now()}`);
+    const probe = path.join(dir, `.fast-probe-${process.pid}-${Date.now()}`);
     await fs.writeFile(probe, 'ok', { encoding: 'utf-8', mode: 0o600, flag: 'wx' });
     await fs.rm(probe, { force: true });
     return true;
@@ -22,22 +22,23 @@ async function canUseDir(dir: string): Promise<boolean> {
   }
 }
 
-/**
- * Ensure SDK config path points at a writable directory for server routes.
- */
-export async function ensureMoneyConfigDir(): Promise<string> {
+export async function ensureFastConfigDir(): Promise<string> {
   const candidates: string[] = [];
-  const envDir = process.env.MONEY_CONFIG_DIR?.trim();
-  if (envDir) candidates.push(normalizePath(envDir));
-  candidates.push(path.join(process.cwd(), '.money-runtime'));
-  candidates.push(path.join(os.tmpdir(), '.money-runtime'));
+  const envDir = process.env.FAST_CONFIG_DIR?.trim();
+
+  if (envDir) {
+    candidates.push(normalizePath(envDir));
+  }
+
+  candidates.push(path.join(process.cwd(), '.fast-runtime'));
+  candidates.push(path.join(os.tmpdir(), '.fast-runtime'));
 
   for (const candidate of candidates) {
     if (await canUseDir(candidate)) {
-      process.env.MONEY_CONFIG_DIR = candidate;
+      process.env.FAST_CONFIG_DIR = candidate;
       return candidate;
     }
   }
 
-  throw new Error('Unable to initialize MONEY_CONFIG_DIR');
+  throw new Error('Unable to initialize FAST_CONFIG_DIR');
 }

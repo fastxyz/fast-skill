@@ -1,4 +1,4 @@
-import { describe, it, before, after } from 'node:test';
+import { describe, it, before, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -15,13 +15,28 @@ import {
 
 describe('keys', () => {
   let tmpDir: string;
+  let originalFastPrivateKey: string | undefined;
 
   before(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fast-keys-test-'));
+    originalFastPrivateKey = process.env.MONEY_FAST_PRIVATE_KEY;
   });
 
   after(async () => {
+    if (originalFastPrivateKey !== undefined) {
+      process.env.MONEY_FAST_PRIVATE_KEY = originalFastPrivateKey;
+    } else {
+      delete process.env.MONEY_FAST_PRIVATE_KEY;
+    }
     await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  afterEach(() => {
+    if (originalFastPrivateKey !== undefined) {
+      process.env.MONEY_FAST_PRIVATE_KEY = originalFastPrivateKey;
+    } else {
+      delete process.env.MONEY_FAST_PRIVATE_KEY;
+    }
   });
 
   describe('generateEd25519Key', () => {
@@ -75,6 +90,22 @@ describe('keys', () => {
       await assert.rejects(async () => {
         await loadKeyfile(missingPath);
       });
+    });
+
+    it('seeds a missing keyfile from MONEY_FAST_PRIVATE_KEY when configured', async () => {
+      const seededPath = path.join(tmpDir, 'keys', 'seeded.json');
+      process.env.MONEY_FAST_PRIVATE_KEY = '0x1111111111111111111111111111111111111111111111111111111111111111';
+
+      const loaded = await loadKeyfile(seededPath);
+      const fromDisk = JSON.parse(await fs.readFile(seededPath, 'utf-8')) as {
+        publicKey: string;
+        privateKey: string;
+      };
+
+      assert.equal(loaded.privateKey, '1111111111111111111111111111111111111111111111111111111111111111');
+      assert.equal(fromDisk.privateKey, loaded.privateKey);
+      assert.equal(fromDisk.publicKey, loaded.publicKey);
+      assert.equal(loaded.publicKey.length, 64);
     });
   });
 

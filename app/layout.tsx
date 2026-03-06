@@ -30,7 +30,7 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'FastAPI — Payment Skill for AI Agents',
   description:
-    'Send, swap, bridge, and look up prices across 13 chains. RPCs, token addresses, and explorer URLs built in.',
+    'Fast chain payment skill for AI agents. Generate payment requests, send funds, sign messages, and inspect token balances.',
 };
 
 const THEME_INIT_SCRIPT = `
@@ -79,7 +79,7 @@ export default function RootLayout({
             </a>
             <div className="nav-actions">
               <div className="nav-links">
-                <a href="/send">Docs</a>
+                <a href="/receive">Receive</a>
                 <a href="/waitlist">Waitlist</a>
               </div>
               <ThemeToggle />
