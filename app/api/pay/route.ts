@@ -4,62 +4,16 @@ import { originFromHost } from '../../lib/origin';
 
 export const dynamic = 'force-dynamic';
 
-// Address validation patterns
-const PATTERNS: Record<string, RegExp> = {
-  fast: /^(set|fast)1[a-z0-9]{38,}$/,
-  evm: /^0x[0-9a-fA-F]{40}$/,
-  solana: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
-};
-
-const CHAIN_PROTOCOLS: Record<string, string> = {
-  fast: 'fast',
-  base: 'evm',
-  ethereum: 'evm',
-  arbitrum: 'evm',
-  polygon: 'evm',
-  optimism: 'evm',
-  bsc: 'evm',
-  avalanche: 'evm',
-  fantom: 'evm',
-  zksync: 'evm',
-  linea: 'evm',
-  scroll: 'evm',
-  solana: 'solana',
-};
-
-const NATIVE_TOKENS: Record<string, string> = {
-  fast: 'FAST',
-  base: 'ETH',
-  ethereum: 'ETH',
-  arbitrum: 'ETH',
-  polygon: 'POL',
-  optimism: 'ETH',
-  bsc: 'BNB',
-  avalanche: 'AVAX',
-  fantom: 'FTM',
-  zksync: 'ETH',
-  linea: 'ETH',
-  scroll: 'ETH',
-  solana: 'SOL',
-};
-
-const SUPPORTED_CHAINS = new Set(Object.keys(CHAIN_PROTOCOLS));
+const FAST_ADDRESS_PATTERN = /^fast1[a-z0-9]{38,}$/;
+const SDK_NATIVE_TOKEN = 'SET';
+const DEFAULT_REQUEST_TOKEN = 'SETUSDC';
 
 function generatePaymentId(): string {
   return 'pay_' + randomBytes(16).toString('hex');
 }
 
-function isValidAddress(address: string, chain: string): boolean {
-  const protocol = CHAIN_PROTOCOLS[chain];
-  if (!protocol) return false;
-  const pattern = PATTERNS[protocol];
-  if (!pattern) return false;
-  return pattern.test(address);
-}
-
 function buildMarkdown(params: {
   paymentId: string;
-  chain: string;
   network: string;
   receiver: string;
   amount: string;
@@ -68,8 +22,7 @@ function buildMarkdown(params: {
   createdAt: string;
   baseUrl: string;
 }): string {
-  const { paymentId, chain, network, receiver, amount, token, memo, createdAt, baseUrl } = params;
-
+  const { paymentId, network, receiver, amount, token, memo, createdAt, baseUrl } = params;
   const memoLine = memo ? '\n\n**Memo:** ' + memo : '';
   const memoFrontmatter = memo ?? '';
   const networkDisclaimer = network === 'testnet'
@@ -79,9 +32,9 @@ function buildMarkdown(params: {
   const frontmatter = [
     '---',
     'type: payment_request',
-    'version: "2.0"',
+    'version: "2.1"',
     'payment_id: "' + paymentId + '"',
-    'chain: "' + chain + '"',
+    'chain: "fast"',
     'network: "' + network + '"',
     'receiver: "' + receiver + '"',
     'amount: "' + amount + '"',
@@ -93,28 +46,23 @@ function buildMarkdown(params: {
   ].join('\n');
 
   const setupBlock = [
-    '```bash',
-    'mkdir -p ~/.money',
-    'curl -sL ' + baseUrl + '/skill.md -o ~/.money/SKILL.md',
-    'curl -sL ' + baseUrl + '/money.bundle.js -o ~/.money/money.bundle.js',
-    'curl -sL ' + baseUrl + '/money.bundle.js.sha256 -o /tmp/money.sha256',
-    '(cd ~/.money && shasum -a 256 -c /tmp/money.sha256) && rm -f /tmp/money.sha256',
-    '```',
+    'Load the Fast skill if your runtime does not already have it:',
     '',
-    '**Auto-discovery:** To let your AI framework find this skill automatically, copy or symlink `~/.money/SKILL.md` into your framework\'s skill discovery directory. Consult your framework\'s documentation for the correct path.',
+    '- Skill: ' + baseUrl + '/skill.md',
+    '',
+    'The skill contains the current install and usage instructions for `@pi2labs/fast-sdk`.',
   ].join('\n');
 
   const payBlock = [
     '```js',
-    'const { money } = await import(`${process.env.HOME}/.money/money.bundle.js`);',
-    'await money.setup({ chain: "' + chain + '", network: "' + network + '" });',
-    'await money.send({',
+    'import { fast } from "@pi2labs/fast-sdk";',
+    '',
+    'const client = fast({ network: "' + network + '" });',
+    'await client.setup();',
+    'await client.send({',
     '  to: "' + receiver + '",',
-    '  amount: ' + amount + ',',
-    '  chain: "' + chain + '",',
-    '  token: "' + token + '",',
-    '  network: "' + network + '",',
-    '  payment_id: "' + paymentId + '",',
+    '  amount: "' + amount + '",',
+    ...(token !== SDK_NATIVE_TOKEN ? ['  token: "' + token + '",'] : []),
     '});',
     '```',
   ].join('\n');
@@ -122,13 +70,11 @@ function buildMarkdown(params: {
   return [
     frontmatter,
     '',
-    '# Payment Request \u2014 ' + amount + ' ' + token + ' on ' + chain,
+    '# Payment Request - ' + amount + ' ' + token + ' on Fast',
     '',
-    'Send **' + amount + ' ' + token + '** to `' + receiver + '` on **' + chain + '** (' + network + ').' + memoLine,
+    'Send **' + amount + ' ' + token + '** to `' + receiver + '` on **fast** (' + network + ').' + memoLine,
     '',
     '## Setup',
-    '',
-    'If you don\'t have the money skill installed:',
     '',
     setupBlock,
     '',
@@ -146,62 +92,44 @@ export async function GET(request: Request) {
   const amount = searchParams.get('amount');
   const chain = searchParams.get('chain');
   const token = searchParams.get('token');
-  const network = searchParams.get('network') ?? 'testnet';
+  const network = searchParams.get('network') ?? 'mainnet';
   const memo = searchParams.get('memo');
 
-  // Validate required params
   if (!receiver) {
     return Response.json({ error: 'Missing required param: receiver' }, { status: 400 });
   }
   if (!amount) {
     return Response.json({ error: 'Missing required param: amount' }, { status: 400 });
   }
-  if (!chain) {
-    return Response.json({ error: 'Missing required param: chain' }, { status: 400 });
-  }
-
-  // Validate chain
-  if (!SUPPORTED_CHAINS.has(chain)) {
+  if (chain && chain !== 'fast') {
     return Response.json(
-      { error: 'Unsupported chain: ' + chain + '. Supported: ' + [...SUPPORTED_CHAINS].join(', ') },
+      { error: 'Unsupported chain: ' + chain + '. Supported: fast' },
+      { status: 400 },
+    );
+  }
+  if (!FAST_ADDRESS_PATTERN.test(receiver)) {
+    return Response.json(
+      { error: 'Invalid receiver address for chain fast' },
       { status: 400 },
     );
   }
 
-  // Validate address
-  if (!isValidAddress(receiver, chain)) {
-    return Response.json(
-      { error: 'Invalid receiver address for chain ' + chain },
-      { status: 400 },
-    );
-  }
-
-  // Validate amount
   const parsedAmount = parseFloat(amount);
   if (isNaN(parsedAmount) || parsedAmount <= 0) {
     return Response.json({ error: 'Amount must be a positive number' }, { status: 400 });
   }
-
-  // Validate network
   if (network !== 'testnet' && network !== 'mainnet') {
     return Response.json({ error: 'Network must be "testnet" or "mainnet"' }, { status: 400 });
   }
 
-  // Resolve token
-  const resolvedToken = token ?? NATIVE_TOKENS[chain];
-
-  // Generate IDs and timestamps
+  const resolvedToken = token?.trim() ? token.trim() : DEFAULT_REQUEST_TOKEN;
   const paymentId = generatePaymentId();
   const createdAt = new Date().toISOString();
-
-  // Derive base URL from request headers
-  const headersList = await headers();
-  const host = headersList.get('host') || 'localhost:3000';
+  const host = (await headers()).get('host') || 'localhost:3000';
   const baseUrl = originFromHost(host);
 
   const markdown = buildMarkdown({
     paymentId,
-    chain,
     network,
     receiver,
     amount,

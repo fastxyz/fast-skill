@@ -1,61 +1,51 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { AgentFlowPanel } from '../components/agent-flow/agent-flow-panel';
-import type { ApiActionCardProps } from '../components/agent-flow/api-action-card';
 import { normalizeLocalOrigin } from '../lib/origin';
-import { CHAINS, isValidAddress } from '../lib/pay-chains';
 
 type NetworkType = 'testnet' | 'mainnet';
 
-function firstLines(value: string, limit = 26): string {
+const SAMPLE_RECEIVER = 'fast1rv8wsdd5pnkwt4u637g2yj4tpuyq26rzw8380rfhpnsnljz7v3tqv4njuq';
+const FAST_ADDRESS_PATTERN = /^fast1[a-z0-9]{38,}$/;
+
+function firstLines(value: string, limit = 28): string {
   return value.split('\n').slice(0, limit).join('\n');
 }
 
-function defaultTokenForReceive(chain: { value: string; token: string }): string {
-  return chain.value === 'fast' ? 'SETUSDC' : chain.token;
-}
-
 export default function ReceivePage() {
-  const defaultChain = CHAINS[0];
-
   const [origin, setOrigin] = useState('');
-  const [chain, setChain] = useState(defaultChain.value);
-  const [network, setNetwork] = useState<NetworkType>('testnet');
-  const [receiver, setReceiver] = useState('');
+  const [network, setNetwork] = useState<NetworkType>('mainnet');
+  const [receiver, setReceiver] = useState(SAMPLE_RECEIVER);
   const [amount, setAmount] = useState('1');
-  const [token, setToken] = useState(defaultTokenForReceive(defaultChain));
+  const [token, setToken] = useState('SETUSDC');
   const [memo, setMemo] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [preview, setPreview] = useState('');
+  const [previewBusy, setPreviewBusy] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [markdownPreview, setMarkdownPreview] = useState('');
-  const [previewBusy, setPreviewBusy] = useState(false);
-
-  const selectedChain = useMemo(
-    () => CHAINS.find((entry) => entry.value === chain) ?? defaultChain,
-    [chain, defaultChain],
-  );
 
   useEffect(() => {
     setOrigin(normalizeLocalOrigin(window.location.origin));
   }, []);
 
-  useEffect(() => {
-    setToken(defaultTokenForReceive(selectedChain));
-  }, [selectedChain]);
+  const requestQuery = useMemo(() => {
+    const params = new URLSearchParams({
+      chain: 'fast',
+      receiver: receiver.trim() || SAMPLE_RECEIVER,
+      amount: amount.trim() || '1',
+      network,
+    });
+    if (token.trim()) params.set('token', token.trim());
+    if (memo.trim()) params.set('memo', memo.trim());
+    return params.toString();
+  }, [amount, memo, network, receiver, token]);
 
-  function buildPayUrl(): string | null {
+  function buildUrl(): string | null {
     setError('');
-    setLinkUrl('');
-    const resolvedReceiver = receiver.trim() || selectedChain.sampleReceiver;
 
-    if (!receiver.trim()) {
-      setReceiver(selectedChain.sampleReceiver);
-    }
-
-    if (!isValidAddress(resolvedReceiver, chain)) {
-      setError('Receiver address is invalid for the selected chain.');
+    if (!FAST_ADDRESS_PATTERN.test(receiver.trim())) {
+      setError('Receiver must be a valid fast1... address.');
       return null;
     }
 
@@ -65,30 +55,23 @@ export default function ReceivePage() {
       return null;
     }
 
-    const params = new URLSearchParams({
-      receiver: resolvedReceiver,
-      amount: amount.trim(),
-      chain,
-      network,
-      token: token.trim() || defaultTokenForReceive(selectedChain),
-    });
-    if (memo.trim()) params.set('memo', memo.trim());
-
-    const currentOrigin = normalizeLocalOrigin(window.location.origin);
-    return `${currentOrigin}/api/pay?${params.toString()}`;
+    return `${normalizeLocalOrigin(window.location.origin)}/api/pay?${requestQuery}`;
   }
 
-  function generateLink() {
-    const url = buildPayUrl();
+  async function generateLink() {
+    const url = buildUrl();
     if (!url) return;
-
     setLinkUrl(url);
-    setMarkdownPreview('');
+    setPreview('');
+    await previewMarkdown(url);
   }
 
-  async function previewMarkdownFromUrl(targetUrl?: string): Promise<{ url: string; preview: string }> {
+  async function previewMarkdown(targetUrl?: string) {
     const url = (targetUrl ?? linkUrl).trim();
-    if (!url) throw new Error('No /api/pay URL available. Generate one first.');
+    if (!url) {
+      setError('Generate a payment request URL first.');
+      return;
+    }
 
     setPreviewBusy(true);
     setError('');
@@ -99,238 +82,134 @@ export default function ReceivePage() {
         headers: { Accept: 'text/markdown' },
         cache: 'no-store',
       });
-
       if (!response.ok) {
-        const data = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? `Markdown request failed (${response.status})`);
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error ?? `Request failed (${response.status})`);
       }
-
       const markdown = await response.text();
-      const preview = firstLines(markdown, 28);
-      setMarkdownPreview(preview);
-      return { url, preview };
+      setPreview(firstLines(markdown));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setPreviewBusy(false);
     }
   }
 
-  async function copyLinkUrl() {
+  async function copyUrl() {
     if (!linkUrl) return;
     await navigator.clipboard.writeText(linkUrl);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1200);
   }
 
-  const payQuery = useMemo(() => {
-    const params = new URLSearchParams({
-      receiver: receiver.trim() || selectedChain.sampleReceiver,
-      amount: amount.trim() || '1',
-      chain,
-      network,
-      token: token.trim() || defaultTokenForReceive(selectedChain),
-    });
-    if (memo.trim()) params.set('memo', memo.trim());
-    return params.toString();
-  }, [amount, chain, memo, network, receiver, selectedChain, token]);
-
-  const agentActions = useMemo<ApiActionCardProps[]>(() => {
-    const payUrl = `${origin || ''}/api/pay?${payQuery}`;
-    const payHeaders: Record<string, string> = { Accept: 'text/markdown' };
-
-    return [
-      {
-        title: 'Generate Payment Request Markdown',
-        integrationMode: 'HTTP endpoint',
-        request: {
-          method: 'GET',
-          url: payUrl,
-          headers: payHeaders,
-          snippets: {
-            javascript: [
-              `const response = await fetch('${payUrl}', { method: 'GET', headers: { Accept: 'text/markdown' } });`,
-              'const markdown = await response.text();',
-              'console.log(markdown);',
-            ].join('\n'),
-          },
-        },
-        successExample: {
-          type: 'text/markdown',
-          preview: markdownPreview || '---\ntype: payment_request\nversion: "2.0"\n...\n',
-        },
-        failureExamples: [
-          {
-            status: 400,
-            payload: { error: 'Missing required param: receiver' },
-            note: 'Include receiver, amount, and chain query params.',
-          },
-          {
-            status: 400,
-            payload: { error: 'Invalid receiver address for chain fast' },
-            note: 'Validate address format for the selected chain.',
-          },
-        ],
-        environment: 'Public API endpoint',
-        fieldNotes: [
-          '`/api/pay` returns markdown, not JSON.',
-          'Use frontmatter fields in agent runtimes to execute `money.send(...)`.',
-        ],
-        tryIt: {
-          label: 'Fetch markdown preview',
-          run: async () => previewMarkdownFromUrl(payUrl),
-        },
-      },
-    ];
-  }, [markdownPreview, origin, payQuery]);
-
   return (
     <main style={{ minHeight: '100vh', padding: '7rem 1.5rem 4rem' }}>
-      <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gap: '1rem' }}>
+      <div style={{ maxWidth: 1080, margin: '0 auto', display: 'grid', gap: '1rem' }}>
         <header style={{ display: 'grid', gap: '0.35rem' }}>
           <p style={{ fontSize: '0.7rem', letterSpacing: '0.16em', color: 'var(--text-3)', textTransform: 'uppercase' }}>
-            Payments
+            Fast SDK
           </p>
-          <h1 style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontWeight: 400 }}>
+          <h1 style={{ margin: 0, fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontWeight: 400 }}>
             Receive
           </h1>
-          <p style={{ color: 'var(--text-2)', fontSize: '0.92rem' }}>
-            Request payments through invoice links
+          <p style={{ margin: 0, color: 'var(--text-2)', fontSize: '0.92rem' }}>
+            Generate Fast-only payment request markdown for agents.
           </p>
         </header>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '0.9rem', alignItems: 'start' }}>
-          <section style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '1rem', display: 'grid', gap: '0.8rem' }}>
-            <header style={{ display: 'grid', gap: '0.2rem' }}>
-              <h2 style={{ margin: 0, fontSize: '0.95rem' }}>Human Flow</h2>
-              <p style={{ margin: 0, color: 'var(--text-3)', fontSize: '0.74rem' }}>
-                Create Payment Request Link
-              </p>
-            </header>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.45rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '0.9rem', alignItems: 'start' }}>
+          <section style={{ border: '1px solid var(--border)', borderRadius: 12, background: 'var(--surface)', padding: '1rem', display: 'grid', gap: '0.85rem' }}>
+            <div style={{ display: 'grid', gap: '0.45rem' }}>
               <label style={{ display: 'grid', gap: '0.2rem' }}>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Chain</span>
-                <select
-                  value={chain}
-                  onChange={(event) => setChain(event.target.value)}
-                  style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.45rem 0.6rem' }}
-                >
-                  {CHAINS.map((entry) => (
-                    <option key={entry.value} value={entry.value}>
-                      {entry.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label style={{ display: 'grid', gap: '0.2rem' }}>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Network</span>
-                <select
-                  value={network}
-                  onChange={(event) => setNetwork(event.target.value as NetworkType)}
-                  style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.45rem 0.6rem' }}
-                >
-                  <option value="testnet">testnet</option>
-                  <option value="mainnet">mainnet</option>
-                </select>
-              </label>
-              <label style={{ display: 'grid', gap: '0.2rem' }}>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Amount</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Receiver</span>
                 <input
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                  placeholder="1"
-                  style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.45rem 0.6rem' }}
+                  value={receiver}
+                  onChange={(event) => setReceiver(event.target.value)}
+                  style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.6rem 0.7rem', fontFamily: 'var(--font-mono), monospace', fontSize: '0.82rem' }}
                 />
               </label>
-              <label style={{ display: 'grid', gap: '0.2rem' }}>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Token</span>
-                <input
-                  value={token}
-                  onChange={(event) => setToken(event.target.value)}
-                  placeholder={defaultTokenForReceive(selectedChain)}
-                  style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.45rem 0.6rem' }}
-                />
-              </label>
-            </div>
 
-            <label style={{ display: 'grid', gap: '0.2rem' }}>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Receiver Address</span>
-              <input
-                value={receiver}
-                onChange={(event) => setReceiver(event.target.value)}
-                placeholder={selectedChain.placeholder}
-                style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.45rem 0.6rem' }}
-              />
-            </label>
-
-            <label style={{ display: 'grid', gap: '0.2rem' }}>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Memo (optional)</span>
-              <input
-                value={memo}
-                onChange={(event) => setMemo(event.target.value)}
-                placeholder="invoice_42"
-                style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.45rem 0.6rem' }}
-              />
-            </label>
-
-            <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button
-                onClick={generateLink}
-                style={{ border: 0, borderRadius: 6, padding: '0.45rem 0.7rem', background: 'var(--text)', color: 'var(--bg)', cursor: 'pointer' }}
-              >
-                Generate Link
-              </button>
-              {linkUrl && (
-                <button
-                  onClick={() => void previewMarkdownFromUrl(linkUrl)}
-                  disabled={previewBusy}
-                  style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '0.42rem 0.62rem', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}
-                >
-                  {previewBusy ? 'Loading markdown...' : 'Preview markdown'}
-                </button>
-              )}
-            </div>
-
-            {error && (
-              <p style={{ margin: 0, color: '#fca5a5', fontSize: '0.74rem' }}>{error}</p>
-            )}
-
-            {linkUrl && (
-              <div style={{ display: 'grid', gap: '0.35rem', fontSize: '0.74rem', color: 'var(--text-2)' }}>
-                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', minWidth: 0 }}>
-                  <code
-                    style={{
-                      maxWidth: '100%',
-                      minWidth: 0,
-                      flex: '1 1 100%',
-                      whiteSpace: 'normal',
-                      overflowWrap: 'anywhere',
-                      wordBreak: 'break-word',
-                    }}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.45rem' }}>
+                <label style={{ display: 'grid', gap: '0.2rem' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Amount</span>
+                  <input
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
+                    style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.6rem' }}
+                  />
+                </label>
+                <label style={{ display: 'grid', gap: '0.2rem' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Token</span>
+                  <input
+                    value={token}
+                    onChange={(event) => setToken(event.target.value)}
+                    placeholder="SETUSDC"
+                    style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.6rem' }}
+                  />
+                </label>
+                <label style={{ display: 'grid', gap: '0.2rem' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Network</span>
+                  <select
+                    value={network}
+                    onChange={(event) => setNetwork(event.target.value as NetworkType)}
+                    style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.6rem' }}
                   >
-                    {linkUrl}
-                  </code>
-                  <button
-                    onClick={() => void copyLinkUrl()}
-                    style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '0.22rem 0.45rem', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: '0.7rem' }}
-                  >
-                    {copied ? 'copied' : 'copy'}
-                  </button>
-                </div>
+                    <option value="mainnet">mainnet</option>
+                    <option value="testnet">testnet</option>
+                  </select>
+                </label>
               </div>
-            )}
 
-            {markdownPreview && (
-              <pre style={{ margin: 0, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--code-bg)', padding: '0.6rem', whiteSpace: 'pre-wrap', maxHeight: 260, overflowY: 'auto', fontSize: '0.72rem', lineHeight: 1.45 }}>
-                {markdownPreview}
-              </pre>
-            )}
+              <label style={{ display: 'grid', gap: '0.2rem' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Memo (optional metadata)</span>
+                <input
+                  value={memo}
+                  onChange={(event) => setMemo(event.target.value)}
+                  placeholder="invoice:alpha-001"
+                  style={{ background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '0.55rem 0.6rem' }}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => void generateLink()}
+                style={{ background: 'var(--text)', color: 'var(--bg)', borderRadius: 999, padding: '0.6rem 1rem', border: 'none', cursor: 'pointer' }}
+              >
+                {previewBusy ? 'Generating...' : 'Generate Link'}
+              </button>
+              <button
+                type="button"
+                onClick={copyUrl}
+                disabled={!linkUrl}
+                style={{ background: 'transparent', color: 'var(--text)', borderRadius: 999, padding: '0.6rem 1rem', border: '1px solid var(--border)', cursor: !linkUrl ? 'not-allowed' : 'pointer', opacity: !linkUrl ? 0.55 : 1 }}
+              >
+                {copied ? 'Copied' : 'Copy Link'}
+              </button>
+            </div>
+
+            {error ? <p style={{ margin: 0, color: '#fca5a5', fontSize: '0.8rem' }}>{error}</p> : null}
+
+            <div style={{ display: 'grid', gap: '0.3rem' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>/api/pay URL</span>
+              <code style={{ padding: '0.85rem', borderRadius: 10, background: 'var(--code-bg)', border: '1px solid var(--border)', fontSize: '0.75rem', wordBreak: 'break-all' }}>
+                {linkUrl || `${origin || 'http://localhost:3000'}/api/pay?${requestQuery}`}
+              </code>
+            </div>
           </section>
 
-          <AgentFlowPanel
-            title="Agent Flow"
-            subtitle="Use endpoint calls to generate payment request markdown."
-            actions={agentActions}
-          />
+          <section style={{ border: '1px solid var(--border)', borderRadius: 12, background: 'var(--surface)', padding: '1rem', display: 'grid', gap: '0.75rem' }}>
+            <header style={{ display: 'grid', gap: '0.2rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1rem' }}>Preview</h2>
+              <p style={{ margin: 0, color: 'var(--text-3)', fontSize: '0.78rem' }}>
+                Fast-only markdown that points agents to the current skill and `fast.send(...)`.
+              </p>
+            </header>
+            <pre style={{ margin: 0, padding: '0.9rem', borderRadius: 10, background: 'var(--code-bg)', border: '1px solid var(--border)', minHeight: 320, overflowX: 'auto', fontSize: '0.76rem', lineHeight: 1.5 }}>
+              {preview || 'No preview loaded yet.'}
+            </pre>
+          </section>
         </div>
       </div>
     </main>
