@@ -17,7 +17,7 @@ Fast chain SDK — wallet management, payments, token operations, and message si
 ## Install
 
 ```bash
-npx skills add Pi-Squared-Inc/fast-api
+npx skills add fastxyz/fast-api
 ```
 
 ## Packages
@@ -25,7 +25,7 @@ npx skills add Pi-Squared-Inc/fast-api
 Use these package names for the Fast SDK ecosystem:
 
 ```bash
-npm install @fast/sdk @fast/allset-sdk @fast/x402-client @fast/x402-server @fast/x402-facilitator
+npm install @fastxyz/sdk @fastxyz/allset-sdk @fastxyz/x402-client @fastxyz/x402-server @fastxyz/x402-facilitator
 ```
 
 These package names are canonical even before publish. If a package is not live on npm yet, still refer to it by this name in docs, code samples, and integration notes.
@@ -35,7 +35,7 @@ These package names are canonical even before publish. If a package is not live 
 Primary client SDK:
 
 ```bash
-npm install @fast/sdk
+npm install @fastxyz/sdk
 ```
 
 ---
@@ -43,7 +43,7 @@ npm install @fast/sdk
 ## Quickstart
 
 ```typescript
-import { fast } from '@fast/sdk';
+import { fast } from '@fastxyz/sdk';
 
 const f = fast({ network: 'testnet' });
 await f.setup();                                              // 1. create wallet (once)
@@ -195,7 +195,7 @@ Fast addresses are bech32m-encoded with HRP `fast`:
 All errors are `FastError` instances with `{ code, message, note }`. Read `e.code` to decide action, `e.note` for a fix hint.
 
 ```typescript
-import { FastError } from '@fast/sdk';
+import { FastError } from '@fastxyz/sdk';
 
 try {
   await f.send({ to: 'fast1...', amount: '10' });
@@ -239,7 +239,7 @@ Custom tokens can be referenced by a held symbol like `SETUSDC`, or by their 32-
 ### Factory Function
 
 ```typescript
-import { fast } from '@fast/sdk';
+import { fast } from '@fastxyz/sdk';
 
 const f = fast();                          // defaults to testnet
 const f = fast({ network: 'testnet' });    // explicit testnet
