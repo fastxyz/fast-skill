@@ -16,13 +16,16 @@ import { x402Pay } from '@fastxyz/x402-client';
 
 const fastClient = fast({ network: 'testnet' });
 
-await fastClient.setup();
+const { address } = await fastClient.setup();
 
-const { publicKey, address } = await fastClient.exportKeys();
-const fastConfigDir = process.env.FAST_CONFIG_DIR
-  ? process.env.FAST_CONFIG_DIR.startsWith('~')
-    ? path.join(os.homedir(), process.env.FAST_CONFIG_DIR.slice(1))
-    : process.env.FAST_CONFIG_DIR
+const { publicKey } = await fastClient.exportKeys();
+const envFastConfigDir = process.env.FAST_CONFIG_DIR;
+const fastConfigDir = envFastConfigDir
+  ? envFastConfigDir === '~'
+    ? os.homedir()
+    : envFastConfigDir.startsWith('~/')
+      ? path.join(os.homedir(), envFastConfigDir.slice(2))
+      : envFastConfigDir
   : path.join(os.homedir(), '.fast');
 const keyfilePath = path.join(fastConfigDir, 'keys', 'fast.json');
 const { privateKey } = JSON.parse(
