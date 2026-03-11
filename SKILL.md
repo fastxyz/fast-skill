@@ -26,7 +26,7 @@ npx skills add fastxyz/fast-skill
 
 ## Example Requests
 
-- "Check my FAST testnet balance and send SET to another `fast1...` address"
+- "Check my FAST testnet balance and send FAST to another `fast1...` address"
 - "Bridge USDC from Arbitrum Sepolia into Fast"
 - "Use the FAST x402 packages to protect an Express API route"
 
@@ -38,7 +38,7 @@ npx skills add fastxyz/fast-skill
 
 ## Package Map
 
-- `@fastxyz/sdk`: Fast network wallet setup, balances, sends, signing, token lookup, low-level claim submission
+- `@fastxyz/sdk`: `FastProvider` read-only access plus `FastWallet` signing, sends, token lookup, and low-level claim submission
 - `@fastxyz/allset-sdk`: bridge flows between Fast and supported EVM routes
 - `@fastxyz/x402-client`: pay 402-protected APIs
 - `@fastxyz/x402-server`: return 402 requirements and protect routes

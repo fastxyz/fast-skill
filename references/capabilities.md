@@ -6,7 +6,7 @@ Use this file to decide which FAST package owns a request and whether the reques
 
 | Package | Use it for | Do not use it for |
 |---|---|---|
-| `@fastxyz/sdk` | Fast wallet setup, balance checks, sends, message signing, token metadata, low-level claim submission | EVM execution, bridging, x402 paywall logic |
+| `@fastxyz/sdk` | FastProvider read-only queries, FastWallet sends and signing, token metadata, low-level claim submission | EVM execution, bridging, x402 paywall logic |
 | `@fastxyz/allset-sdk` | Fast <-> EVM bridge flows | Generic Fast wallet work or arbitrary EVM <-> EVM routing |
 | `@fastxyz/x402-client` | Paying 402-protected APIs | Protecting routes or running settlement infra |
 | `@fastxyz/x402-server` | Returning 402 requirements, route protection, payment verification hooks | Signing client payments or settling on-chain by itself |
@@ -17,9 +17,10 @@ Use this file to decide which FAST package owns a request and whether the reques
 ### Fast SDK
 
 - Package: `@fastxyz/sdk`
-- Networks: `testnet`, `mainnet`
+- Networks: built-in `testnet` and `mainnet`, plus custom names from `~/.fast/networks.json`
 - Default: `testnet`
-- Main surface: `fast({ network? })`
+- Main surface: `new FastProvider({ network?, rpcUrl?, explorerUrl? })` for reads, then `FastWallet.fromKeyfile(..., provider)` or `FastWallet.fromPrivateKey(..., provider)` for signing
+- Package split: none. `FastProvider` and `FastWallet` are both exported from the same `@fastxyz/sdk` package.
 - Safe assumption: use this for direct Fast work unless the user explicitly needs a bridge or x402 flow
 
 ### AllSet SDK
