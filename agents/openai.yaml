@@ -1,7 +1,7 @@
 interface:
   display_name: "FAST Skill"
-  short_description: "Route FAST SDK, bridge, and x402 package tasks"
-  default_prompt: "Use $fast-skill to choose the right FAST package and implement a FAST wallet, bridge, or x402 flow with the shipped @fastxyz packages."
+  short_description: "Route FAST wallet, bridge, and x402 work to the right package"
+  default_prompt: "Use $fast-skill to choose the correct shipped FAST package, default to testnet unless the user asks for mainnet, and implement against the current source-of-truth repos."
 
 policy:
   allow_implicit_invocation: true

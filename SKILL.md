@@ -1,22 +1,26 @@
 ---
 name: fast-skill
+version: 0.2.1
 description: >
-  Router skill for the FAST ecosystem. Use when the user asks about FAST, fastUSDC, AllSet,
-  @fastxyz/sdk, @fastxyz/allset-sdk, @fastxyz/x402-client, @fastxyz/x402-server, or
-  @fastxyz/x402-facilitator; wants Fast balances, Fast transfers, Fast to EVM or EVM to Fast
-  bridging, or wants to pay for or protect an API with FAST x402 packages. Do not use for generic
-  EVM wallets, generic bridging, unrelated HTTP 402 questions, or non-FAST payment stacks.
+  Route FAST ecosystem work to the shipped @fastxyz packages. Use when the user mentions FAST,
+  fastUSDC, AllSet, @fastxyz/sdk, @fastxyz/allset-sdk, @fastxyz/x402-client,
+  @fastxyz/x402-server, or @fastxyz/x402-facilitator; wants Fast wallet, balance, send, bridge,
+  or x402 API payment/protection flows; or needs help choosing the right FAST package. Do not use
+  for generic EVM wallets, generic bridging, unrelated HTTP 402 questions, or non-FAST payment
+  stacks.
 compatibility: >
   Portable across Claude- and Codex-style skill runtimes with Node.js package install support and
   network access. Examples assume TypeScript and default to FAST testnet unless the user
   explicitly asks for mainnet.
 metadata:
-  version: 0.2.0
+  openclaw:
+    homepage: https://github.com/fastxyz/fast-skill
+    emoji: "⚡"
 ---
 
 # FAST Skill
 
-Single entrypoint for the FAST SDK ecosystem.
+Single entrypoint for the shipped FAST package ecosystem.
 
 ## Install
 
@@ -26,9 +30,10 @@ npx skills add fastxyz/fast-skill
 
 ## Example Requests
 
-- "Check my FAST testnet balance and send SET to another `fast1...` address"
+- "Check my FAST testnet balance and send FAST to another `fast1...` address"
 - "Bridge USDC from Arbitrum Sepolia into Fast"
 - "Use the FAST x402 packages to protect an Express API route"
+- "Which FAST package should I use for an x402 payer flow?"
 
 ## Do Not Use For
 
@@ -38,13 +43,19 @@ npx skills add fastxyz/fast-skill
 
 ## Package Map
 
-- `@fastxyz/sdk`: Fast network wallet setup, balances, sends, signing, token lookup, low-level claim submission
+- `@fastxyz/sdk`: `FastProvider` read-only access plus `FastWallet` signing, sends, token lookup, and low-level claim submission
 - `@fastxyz/allset-sdk`: bridge flows between Fast and supported EVM routes
 - `@fastxyz/x402-client`: pay 402-protected APIs
 - `@fastxyz/x402-server`: return 402 requirements and protect routes
 - `@fastxyz/x402-facilitator`: verify and settle x402 payments
 
 If an umbrella x402 package is introduced later, treat it as a wrapper. The current source-of-truth API surface is still the role-specific client, server, and facilitator packages.
+
+## Source Of Truth
+
+- Prefer the shipped SDK repos over stale examples or roadmap assumptions.
+- For local updates, check `../fast-sdk`, `../allset-sdk`, and `../x402-sdk`.
+- If docs and code disagree, route from code and fix the docs.
 
 ## Start Here
 
@@ -66,6 +77,10 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 - Chain to chain via Fast: [flows/chain-to-chain-via-fast.md](./flows/chain-to-chain-via-fast.md)
 - Pay an x402 API: [flows/x402-pay-an-api.md](./flows/x402-pay-an-api.md)
 - Protect an x402 API: [flows/x402-protect-an-api.md](./flows/x402-protect-an-api.md)
+
+Reference map:
+- Use `references/` files for package facts and support boundaries.
+- Use `flows/` files only when the user wants an end-to-end implementation pattern.
 
 ## Routing Rules
 
