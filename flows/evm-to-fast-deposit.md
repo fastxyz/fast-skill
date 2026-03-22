@@ -13,30 +13,31 @@ This is an AllSet deposit flow using `@fastxyz/allset-sdk`.
 ## Example
 
 ```ts
-import { allsetProvider, createEvmExecutor } from '@fastxyz/allset-sdk';
+import { AllSetProvider, createEvmExecutor, createEvmWallet } from '@fastxyz/allset-sdk/node';
 
-const evmExecutor = createEvmExecutor(
-  process.env.EVM_PRIVATE_KEY!,
+const account = createEvmWallet(process.env.EVM_PRIVATE_KEY!);
+const evmClients = createEvmExecutor(
+  account,
   process.env.ARBITRUM_SEPOLIA_RPC_URL!,
   421614,
 );
 
-const result = await allsetProvider.bridge({
-  fromChain: 'arbitrum',
-  toChain: 'fast',
-  fromToken: 'USDC',
-  toToken: 'fastUSDC',
-  fromDecimals: 6,
+const allset = new AllSetProvider({ network: 'testnet' });
+
+const result = await allset.sendToFast({
+  chain: 'arbitrum',
+  token: 'USDC',
   amount: '1000000',
-  senderAddress: '0xYourEvmAddress',
-  receiverAddress: 'fast1YourFastAddress',
-  evmExecutor,
+  from: account.address,
+  to: 'fast1YourFastAddress',
+  evmClients,
 });
 ```
 
 ## Checks
 
-- `receiverAddress` must be `fast1...`
+- `to` must be `fast1...`
 - `amount` is raw base units
+- use `@fastxyz/allset-sdk/node` for runtime execution; the root package is pure-helper only
 - if approval is needed, the executor will handle it before deposit
 - unsupported token mappings should be called out before writing code

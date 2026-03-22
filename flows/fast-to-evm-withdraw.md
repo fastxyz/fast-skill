@@ -5,38 +5,33 @@ This is an AllSet withdrawal flow using `@fastxyz/allset-sdk`.
 ## Preconditions
 
 - supported destination chain in the current SDK config
-- compatible Fast client
+- compatible Fast wallet
 - Fast sender address
 - EVM receiver address
 
 ## Example
 
 ```ts
-import { allsetProvider } from '@fastxyz/allset-sdk';
+import { FastProvider, FastWallet } from '@fastxyz/sdk';
+import { AllSetProvider } from '@fastxyz/allset-sdk/node';
 
-const result = await allsetProvider.bridge({
-  fromChain: 'fast',
-  toChain: 'arbitrum',
-  fromToken: 'fastUSDC',
-  toToken: 'USDC',
-  fromDecimals: 6,
+const fastProvider = new FastProvider({ network: 'testnet' });
+const fastWallet = await FastWallet.fromKeyfile('~/.fast/keys/default.json', fastProvider);
+const allset = new AllSetProvider({ network: 'testnet' });
+
+const result = await allset.sendToExternal({
+  chain: 'arbitrum',
+  token: 'fastUSDC',
   amount: '1000000',
-  senderAddress: 'fast1YourFastAddress',
-  receiverAddress: '0xYourEvmAddress',
-  fastClient,
+  from: fastWallet.address,
+  to: '0xYourEvmAddress',
+  fastWallet,
 });
 ```
 
-## Fast Client Contract
-
-The Fast client must provide:
-
-- `submit(...)`
-- `evmSign(...)`
-- `address`
-
 ## Checks
 
-- `receiverAddress` must be `0x...`
+- `to` must be `0x...`
 - `amount` is raw base units
+- use `@fastxyz/allset-sdk/node` for runtime execution; the root package is pure-helper only
 - withdrawal may fail at the relayer leg even after the Fast-side action is created

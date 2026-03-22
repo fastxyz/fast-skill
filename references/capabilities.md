@@ -26,12 +26,15 @@ Use this file to decide which FAST package owns a request and whether the reques
 
 - Package: `@fastxyz/allset-sdk`
 - Current network posture: testnet-focused
+- Entrypoints:
+  - `@fastxyz/allset-sdk` for pure deposit planning and intent builders
+  - `@fastxyz/allset-sdk/node` for `AllSetProvider`, `createEvmWallet`, and `createEvmExecutor`
 - Directions supported in one call:
   - EVM -> Fast deposit
   - Fast -> EVM withdraw
-- EVM chains in current bridge config: `arbitrum`, `ethereum`
-- Token mapping actually shipped today: Arbitrum Sepolia `USDC` and `fastUSDC`
-- Important caveat: Ethereum Sepolia has config in code, but no shipped token mapping in the current SDK. Do not claim it works without adding code.
+- EVM chains in current bundled testnet config: `arbitrum`, `ethereum`, `base`
+- Token mapping actually shipped today: `USDC`, with `fastUSDC` and `testUSDC` accepted as Fast-side aliases
+- Important caveat: bundled mainnet config is empty. Do not imply bundled mainnet bridge support.
 - Amounts are passed as raw base-unit strings, not human decimal strings
 
 ### x402 Client
@@ -85,6 +88,6 @@ Use this file to decide which FAST package owns a request and whether the reques
 Stop and call out the limitation before coding when:
 
 - the user asks for an AllSet route that is not Fast <-> EVM
-- the requested AllSet token is not the shipped `USDC` or `fastUSDC` mapping
+- the requested AllSet token is not the shipped `USDC`, `fastUSDC`, or `testUSDC` mapping
 - the request assumes all x402 networks support auto-bridge
 - the request assumes a single umbrella x402 package surface when the codebase actually uses role-specific packages
