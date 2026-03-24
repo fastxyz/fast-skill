@@ -10,6 +10,7 @@ Before using this flow in production:
 - pin the expected payment network, asset, recipient or facilitator, and max spend in your app config
 - default to testnet unless the user explicitly approved mainnet
 - do not enable auto-bridge unless the user explicitly approved a bridge-backed payment path
+- do not assume the client's supported network list matches the bundled server + facilitator stack
 
 ## EVM Example
 
@@ -37,6 +38,8 @@ const result = await x402Pay({
 });
 ```
 
+That only enables the bridge path. The current shipped helper still needs the server to ask for a network that resolves a bundled bridge config, which is currently `base`.
+
 ## Flow
 
 1. Make the request to a trusted or allowlisted API URL.
@@ -50,6 +53,8 @@ const result = await x402Pay({
 
 - if both Fast and EVM are accepted, the client prefers Fast
 - auto-bridge depends on explicit bridge helper configs, not a generic any-chain path
+- the shipped auto-bridge helper currently resolves only the bundled `base` path
 - the `402` response must not be trusted by itself; pin expectations locally and reject mismatches
+- if a Fast payment requirement omits `asset`, the client falls back to native `FAST`
 - require explicit approval before using both wallets for auto-bridge
 - require explicit approval before any mainnet payment path

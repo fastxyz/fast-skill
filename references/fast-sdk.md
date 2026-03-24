@@ -8,64 +8,125 @@ Use this when the request is purely about Fast network wallets, balances, transf
 npm install @fastxyz/sdk
 ```
 
-## Public API
+## Entrypoints
 
 ```ts
-import { fast, FastError } from '@fastxyz/sdk';
-
-const f = fast({ network: 'testnet' });
+import { FastProvider, FastWallet, FastError } from '@fastxyz/sdk';
+import { FastProvider as BrowserFastProvider } from '@fastxyz/sdk/browser';
+import { encodeFastAddress, decodeFastAddress } from '@fastxyz/sdk/core';
 ```
 
-- `fast({ network?, rpcUrl? })`: create a client
-- `FastError`: typed operational errors with `code`, `message`, and optional `note`
+- `@fastxyz/sdk`: Node runtime entrypoint with `FastProvider`, `FastWallet`, config helpers, address helpers, and BCS / certificate utilities
+- `@fastxyz/sdk/browser`: browser-safe `FastProvider` plus shared helpers, with no keyfile support
+- `@fastxyz/sdk/core`: pure helpers only
 
-## Standard Flow
+Hard cutover: do not write against an old `fast()` / `setup()` wrapper. The shipped package is provider/wallet based.
+
+## Standard Node Flow
 
 ```ts
-const f = fast({ network: 'testnet' });
+import { FastProvider, FastWallet } from '@fastxyz/sdk';
 
-const { address } = await f.setup();
-const balance = await f.balance();
-const sent = await f.send({ to: 'fast1...', amount: '1.0' });
+const provider = new FastProvider({ network: 'testnet' });
+const wallet = await FastWallet.fromKeyfile({ key: 'default' }, provider);
+
+const balance = await wallet.balance('FAST');
+const sent = await wallet.send({
+  to: 'fast1recipient...',
+  amount: '1.0',
+  token: 'FAST',
+});
+
+console.log(wallet.address);
+console.log(balance.amount);
+console.log(sent.txHash, sent.explorerUrl);
 ```
 
-Call `setup()` before everything else. It creates or loads the local wallet and returns the `fast1...` address.
+## Browser-Safe Flow
 
-## Methods That Matter
+```ts
+import { FastProvider, getCertificateHash } from '@fastxyz/sdk/browser';
 
-- `setup()`: create or load the wallet
-- `balance({ token? })`: get native `SET` or a token by held symbol or token id
-- `send({ to, amount, token? })`: send native `SET` or a custom token
-- `sign({ message })`: sign with the local Ed25519 key
-- `verify({ message, signature, address })`: verify a signature
-- `tokens()`: list held tokens and balances
-- `tokenInfo({ token })`: fetch metadata for a held symbol or token id
-- `submit({ recipient, claim })`: low-level custom claim submission
-- `exportKeys()`: return public key and address only
-- `address`: current wallet address after setup
+const provider = new FastProvider({ network: 'testnet' });
+const balance = await provider.getBalance('fast1recipient...', 'FAST');
+const certificate = await provider.getCertificateByNonce('fast1recipient...', 1);
 
-## Important Data Rules
+console.log(balance.amount);
+if (certificate) {
+  console.log(getCertificateHash(certificate));
+}
+```
+
+## APIs That Matter
+
+Provider:
+
+- `new FastProvider({ network?, networkId?, rpcUrl?, explorerUrl?, networks?, tokens? })`
+- `getBalance(address, token?)`
+- `getTokens(address)`
+- `getTokenInfo(token)`
+- `getAccountInfo(address)`
+- `getTransactionCertificates(address, fromNonce, limit)`
+- `getCertificateByNonce(address, nonce)`
+- `submitTransaction(envelope)`
+- `faucetDrip({ recipient, amount, token? })`
+- `getExplorerUrl(txHash?)`
+- `resolveKnownToken(token)`, `getKnownTokens()`, `getKnownNetworks()`, `getNetworkId()`
+
+Wallet:
+
+- `FastWallet.fromKeyfile(pathOrOpts, provider)`
+- `FastWallet.fromPrivateKey(privateKey, provider)`
+- `FastWallet.generate(provider)`
+- `saveToKeyfile(path)`
+- `balance(token?)`
+- `tokens()`
+- `send({ to, amount, token? })`
+- `sign({ message })`
+- `verify({ message, signature, address })`
+- `submit({ claim })`
+- `exportKeys()`
+
+Shared helpers:
+
+- `encodeFastAddress`, `fastAddressToBytes`, `decodeFastAddress`
+- `getNetworkInfo`, `getAllNetworks`, `resolveKnownFastToken`, `getAllTokens`, `getDefaultRpcUrl`, `getExplorerUrl`
+- `hashTransaction`, `serializeVersionedTransaction`, `decodeTransactionEnvelope`, `getTransferDetails`
+- `FAST_TOKEN_ID`, `FAST_DECIMALS`, `FAST_NETWORK_IDS`
+
+## Config And Data Rules
 
 - Default network is `testnet`. Only use `mainnet` if the user explicitly asks.
-- Transfer amounts are human-readable strings, for example `'1.5'`.
+- Node config precedence:
+  1. constructor overrides
+  2. `~/.fast/networks.json` and `~/.fast/tokens.json`
+  3. bundled defaults
+  4. hardcoded fallbacks
+- Browser config omits the `~/.fast/*` layer and uses constructor overrides plus bundled defaults.
+- Built-in token symbols currently resolve `FAST` and `testUSDC` on `testnet`, and `FAST` plus `fastUSDC` on `mainnet`.
+- `wallet.send(...)` expects human-readable amount strings such as `'1.5'`.
 - Fast addresses must be bech32m with `fast` prefix.
-- The native token is `SET`.
+- The native token symbol is `FAST`.
+- `FastWallet.fromKeyfile({ key: 'merchant' }, provider)` resolves `~/.fast/keys/merchant.json` and auto-creates the key unless `createIfMissing: false`.
 
 ## Safety Rules
 
 - Never overwrite or delete `~/.fast/keys/`.
+- Only wallets created in memory via `generate()` or `fromPrivateKey()` can be saved with `saveToKeyfile(...)`.
 - Fast sends are irreversible.
 - Confirm the recipient address before calling `send()`.
+- Use `provider.getExplorerUrl(txHash)` instead of hardcoded explorer hosts.
 
 ## Error Handling
 
 The package throws `FastError`. Common codes:
 
-- `CHAIN_NOT_CONFIGURED`: call `setup()` first
 - `INSUFFICIENT_BALANCE`: fund the wallet and retry
 - `INVALID_ADDRESS`: fix the `fast1...` address
 - `TOKEN_NOT_FOUND`: use a held symbol or a valid token id
+- `KEYFILE_NOT_FOUND`: `fromKeyfile(..., createIfMissing: false)` could not find the file
 - `TX_FAILED`: wait, inspect, retry once if appropriate
+- `UNSUPPORTED_OPERATION`: unsupported keyfile/save path or malformed low-level call
 - `INVALID_PARAMS`: fix the input shape
 
 ## Use This Instead Of Other FAST Packages When

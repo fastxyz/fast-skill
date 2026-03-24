@@ -10,7 +10,7 @@ npm install @fastxyz/allset-sdk
 
 Add `@fastxyz/sdk` too when the workflow needs a Fast wallet for Fast -> EVM withdrawals or intent execution.
 
-## Public API
+## Entrypoints
 
 ```ts
 import {
@@ -18,6 +18,7 @@ import {
   buildTransferIntent,
   buildExecuteIntent,
   buildDepositBackIntent,
+  buildRevokeIntent,
 } from '@fastxyz/allset-sdk';
 
 import {
@@ -27,32 +28,35 @@ import {
 } from '@fastxyz/allset-sdk/node';
 ```
 
-- Root `@fastxyz/allset-sdk`: pure helpers only
-- `@fastxyz/allset-sdk/node`: provider, executor, wallet, bridge execution, config access
-- `AllSetProvider`: read config and execute supported bridge legs
-- `createEvmWallet(...)`: create or load an EVM account
-- `createEvmExecutor(account, rpcUrl, chainId)`: create viem clients for approvals and deposits
-- `buildDepositTransaction(...)`: plan an EVM -> Fast deposit without node-only runtime helpers
+- Root `@fastxyz/allset-sdk` currently re-exports both pure helpers and the node/runtime APIs
+- `@fastxyz/allset-sdk/node` is still the clearest explicit runtime import path
+- `@fastxyz/allset-sdk/browser` and `@fastxyz/allset-sdk/core` are the pure-helper surfaces
 
 ## Supported Directions
 
 - EVM -> Fast deposit
 - Fast -> EVM withdraw
+- Fast -> EVM intent execution
 
 This SDK does not expose a single EVM -> EVM bridge call. Cross-chain EVM movement is composed from two legs through Fast.
 
 ## Current Support Limits
 
-- Network posture: testnet-focused
-- Root import does not expose `AllSetProvider` or `createEvmExecutor`
-- Node/runtime bridge config currently ships testnet routes for `arbitrum`, `ethereum`, and `base`
-- Mainnet config path exists, but bundled mainnet chain config is empty
-- Token mapping actually shipped today is `USDC`, with `fastUSDC` and `testUSDC` accepted as Fast-side aliases
-- Amounts are raw base-unit strings such as `'1000000'` for 1 USDC
+- Bundled bridge config is testnet-only
+- Shipped chain keys are `ethereum`, `arbitrum`, and `base`
+- Bundled chain IDs are:
+  - `ethereum` -> `11155111`
+  - `arbitrum` -> `421614`
+  - `base` -> `8453`
+- Bundled mainnet config exists, but its `chains` map is empty
+- `createEvmExecutor(...)` only supports chain IDs `11155111`, `421614`, and `8453`
+- Bundled token mapping is `USDC`, with `fastUSDC` and `testUSDC` normalized to the Fast-side USDC route
+- Amounts are raw 6-decimal base-unit strings such as `'1000000'` for 1 USDC
+- Hard cutover: do not call AllSet with chain names like `arbitrum-sepolia` or `ethereum-sepolia`. The shipped SDK keys are `arbitrum` and `ethereum`.
 
 ## EVM To Fast Deposit
 
-Use the node entrypoint for execution:
+Use the explicit runtime entrypoint for execution:
 
 ```ts
 import { AllSetProvider, createEvmExecutor, createEvmWallet } from '@fastxyz/allset-sdk/node';
@@ -78,7 +82,7 @@ const result = await allset.sendToFast({
 
 ## Fast To EVM Withdraw
 
-Use a Fast wallet plus the node entrypoint:
+Use a Fast wallet plus the explicit runtime entrypoint:
 
 ```ts
 import { FastProvider, FastWallet } from '@fastxyz/sdk';
@@ -98,6 +102,28 @@ const result = await allset.sendToExternal({
 });
 ```
 
+## Intent Execution
+
+```ts
+import { FastProvider, FastWallet } from '@fastxyz/sdk';
+import { AllSetProvider } from '@fastxyz/allset-sdk/node';
+import { buildTransferIntent } from '@fastxyz/allset-sdk';
+
+const fastProvider = new FastProvider({ network: 'testnet' });
+const fastWallet = await FastWallet.fromKeyfile({ key: 'default' }, fastProvider);
+const allset = new AllSetProvider({ network: 'testnet' });
+
+const result = await allset.executeIntent({
+  chain: 'arbitrum',
+  fastWallet,
+  token: 'fastUSDC',
+  amount: '1000000',
+  intents: [
+    buildTransferIntent('0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d', '0xRecipient'),
+  ],
+});
+```
+
 ## Failure Modes To Watch
 
 - `INVALID_PARAMS`: missing `evmClients` or `fastWallet`
@@ -105,6 +131,7 @@ const result = await allset.sendToExternal({
 - `TOKEN_NOT_FOUND`: token mapping not shipped for that route
 - `UNSUPPORTED_OPERATION`: route is not Fast <-> EVM or the EVM chain is not in the current shipped config
 - `TX_FAILED`: approval, deposit, relayer leg, or other downstream bridge execution failed
+- user-supplied mainnet/custom deployments need caller-provided config instead of the bundled defaults
 
 ## Use This Instead Of Other FAST Packages When
 
