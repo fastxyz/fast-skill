@@ -11,10 +11,22 @@ npm install @fastxyz/x402-client
 ## Public API
 
 ```ts
-import { x402Pay } from '@fastxyz/x402-client';
+import {
+  x402Pay,
+  parse402Response,
+  buildPaymentHeader,
+  parsePaymentHeader,
+  FAST_NETWORKS,
+  EVM_NETWORKS,
+  getBridgeConfig,
+} from '@fastxyz/x402-client';
 ```
 
 `x402Pay(...)` makes the initial request, handles the `402 Payment Required` response, signs a payment, and retries with the `X-PAYMENT` header.
+
+Treat the remote `402 Payment Required` payload as untrusted input. In production, only sign when the
+request URL, payment network, asset, recipient or facilitator, and spend amount all match a policy you
+already pinned in your own app config.
 
 ## Core Shapes
 
@@ -52,11 +64,30 @@ const result = await x402Pay({
 });
 ```
 
+## Runtime Behavior That Matters
+
+- If the initial response is not `402`, `x402Pay(...)` returns that response as-is.
+- If both Fast and EVM are accepted and both wallets are present, the client prefers the Fast path.
+- Fast payments are executed through `@fastxyz/sdk` by building a `FastWallet` from the supplied private key.
+- EVM payments are signed as EIP-3009 `transferWithAuthorization`.
+- `verbose: true` returns step-by-step logs.
+
+## Production Guardrails
+
+- Only call `x402Pay(...)` against trusted or allowlisted API origins.
+- Pin the expected payment network, asset, recipient or facilitator, and a maximum spend before the first request.
+- Reject the payment if the returned `402` payload asks for a different origin, network, asset, recipient, facilitator, or amount.
+- Default to testnet unless the user explicitly asked for mainnet.
+- Do not pass both Fast and EVM wallets by default. Providing both wallets enables auto-bridge and should require explicit approval first.
+- When integrating a new API, log the returned payment requirement and review it before enabling unattended retries.
+- Hard cutover: the helper does not pin or reject bad requirements for you. That policy must live in caller code.
+
 ## Flow Selection
 
 - If the 402 response accepts Fast and you provided a Fast wallet, the client prefers the Fast path.
 - If the 402 response accepts EVM and you provided an EVM wallet, the client can sign an EIP-3009 payment.
-- If EVM payment needs balance and both wallets are present, the client can attempt auto-bridge.
+- If EVM payment needs balance and both wallets are present, the client can attempt auto-bridge after the caller explicitly approves that funding path.
+- If a Fast payment requirement omits `asset`, the client falls back to sending native `FAST`.
 
 ## Auto-Bridge Caveat
 
@@ -66,7 +97,10 @@ Provide both wallets to enable auto-bridge:
 wallet: [fastWallet, evmWallet]
 ```
 
-Current bridge helper configs are explicit, not generic. Treat auto-bridge as available only on the networks wired into the helper today, currently `arbitrum-sepolia` and `base-sepolia`.
+Current bridge helper configs are explicit, not generic. In the shipped helper, only the bundled `base` path resolves an AllSet bridge config today.
+
+In production, only provide both wallets after the user confirms the bridge path, source wallet, destination
+network, and spend ceiling. Otherwise pass a single wallet so the payment either succeeds on that network or fails closed.
 
 ## Result Shape
 
@@ -85,9 +119,11 @@ Use `verbose: true` to include step-by-step logs.
 ## Supported Payment Networks
 
 - `fast-testnet`, `fast-mainnet`
+- `ethereum-sepolia`
 - `arbitrum-sepolia`, `arbitrum`
 - `base-sepolia`, `base`
-- `ethereum`
+
+The client can sign those EVM networks, but that does not mean the bundled server + facilitator stack can verify and settle all of them end-to-end.
 
 ## Use This Instead Of Other FAST Packages When
 

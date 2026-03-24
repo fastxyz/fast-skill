@@ -13,8 +13,11 @@ npm install @fastxyz/x402-facilitator
 ```ts
 import {
   createFacilitatorServer,
+  createFacilitatorRoutes,
   verify,
   settle,
+  SUPPORTED_EVM_NETWORKS,
+  SUPPORTED_FAST_NETWORKS,
 } from '@fastxyz/x402-facilitator';
 ```
 
@@ -43,31 +46,37 @@ Fast payments do not need settlement because the payment is already on-chain.
 ## Use As A Library
 
 - `verify(paymentPayload, paymentRequirement)`
-- `settle(paymentPayload, paymentRequirement, evmPrivateKey)`
+- `settle(paymentPayload, paymentRequirement, config)`
 
 ## Config Requirements
 
 - `evmPrivateKey`: required for EVM settlement, because the facilitator pays gas
 - `fastRpcUrl`: optional override for Fast verification
-- `chains`: optional custom EVM chain config map
+- `committeePublicKeys`: optional override for trusted Fast committee keys
+- `chains`: declared in the public type, but the current verify / settle path still uses the built-in chain map
 
 ## Supported Networks In Code
 
 EVM:
 
-- `arbitrum-sepolia`, `arbitrum`
-- `base-sepolia`, `base`
-- `ethereum`, `ethereum-sepolia`
+- `arbitrum`
+- `ethereum`
+- `base`
+- `base-sepolia`
 
 Fast:
 
 - `fast-testnet`, `fast-mainnet`
+
+Hard cutover: `arbitrum-sepolia` and `ethereum-sepolia` are not in the current built-in EVM chain map. `verify(...)` and `settle(...)` return `invalid_network` for them.
 
 ## Operational Rules
 
 - Fund the facilitator wallet with native gas on every EVM network you settle on.
 - Re-verify a payment before settlement.
 - Treat Fast verification and EVM settlement as different concerns.
+- `GET /supported` is the source of truth for the current service surface.
+- The HTTP server accepts either decoded JSON payloads or base64-encoded `paymentPayload` bodies.
 
 ## Good Fit
 

@@ -38,6 +38,7 @@ const result = await allset.sendToFast({
 
 - `to` must be `fast1...`
 - `amount` is raw base units
-- use `@fastxyz/allset-sdk/node` for runtime execution; the root package is pure-helper only
+- bundled AllSet chain keys are `ethereum`, `arbitrum`, and `base`
+- use `@fastxyz/allset-sdk/node` for explicit runtime imports; the root package currently re-exports the same runtime APIs too
 - if approval is needed, the executor will handle it before deposit
 - unsupported token mappings should be called out before writing code

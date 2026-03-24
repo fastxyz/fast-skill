@@ -40,8 +40,8 @@ npx skills add fastxyz/fast-skill
 
 ## Package Map
 
-- `@fastxyz/sdk`: Fast network wallet setup, balances, sends, signing, token lookup, low-level claim submission
-- `@fastxyz/allset-sdk`: bridge flows between Fast and supported EVM routes
+- `@fastxyz/sdk`: `FastProvider`, `FastWallet`, browser/core helpers, config helpers, address and BCS utilities for direct Fast work
+- `@fastxyz/allset-sdk`: Fast <-> EVM bridge flows, intent builders, `AllSetProvider`, EVM wallet/executor helpers
 - `@fastxyz/x402-client`: pay 402-protected APIs
 - `@fastxyz/x402-server`: return 402 requirements and protect routes
 - `@fastxyz/x402-facilitator`: verify and settle x402 payments
@@ -80,15 +80,17 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 
 ### 2. Default to testnets unless the user explicitly asks for mainnet
 
-- `@fastxyz/sdk` defaults to `testnet`.
-- `@fastxyz/allset-sdk` currently exposes testnet-oriented bridge routes.
-- x402 packages list both testnet and mainnet-style networks, but do not move a user to mainnet silently.
+- `@fastxyz/sdk` ships `testnet` and `mainnet` defaults and can also load custom named networks from config.
+- `@fastxyz/allset-sdk` ships bundled testnet routes only: `ethereum` (chain ID `11155111`), `arbitrum` (`421614`), and `base` (`8453`). The bundled mainnet `chains` map is empty.
+- x402 client, server, and facilitator do not expose the same network set. Check [references/capabilities.md](./references/capabilities.md) before promising an end-to-end paid API flow.
 
 ### 3. Treat support limits as code-level constraints
 
 - If a route or token is not in the shipped SDK config, say so clearly before writing code.
 - Do not claim AllSet supports arbitrary EVM to EVM bridging in one call. Cross-chain EVM flows are composed from two legs through Fast.
-- Do not claim x402 auto-bridge works on every EVM network; check the current bridge helper and capability matrix.
+- Do not write against removed Fast examples such as `fast()` or `setup()`. The shipped Fast SDK is provider/wallet based.
+- Do not claim x402 auto-bridge works on every EVM network; the current client helper only resolves the bundled bridge path documented in the capability matrix.
+- Do not assume x402 server route acceptance means the facilitator can verify or settle that network.
 
 ### 4. Respect irreversible operations
 
@@ -102,6 +104,8 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 - If the request only says `x402` or `402`, confirm it is specifically about the FAST `@fastxyz/*` packages before routing here.
 - If the user asks for unsupported routes or token mappings, stop and cite the shipped constraint from [references/capabilities.md](./references/capabilities.md) instead of approximating a solution.
 - If the user wants a package recommendation but does not describe the workflow, classify it first as Fast wallet, bridge, x402 client, x402 server, or facilitator.
+- If the user asks for AllSet chains named `ethereum-sepolia` or `arbitrum-sepolia`, translate that request back to the shipped AllSet chain keys `ethereum` and `arbitrum` before coding.
+- If the user wants end-to-end x402 on `arbitrum-sepolia` or `ethereum-sepolia`, stop and cite the current facilitator limits instead of pretending the full stack supports them.
 - If the user needs more Fast-side USDC and already has a `fast1...` address, prefer offering the hosted ramp link on `https://ramp.fast.xyz` over inventing a custom funding workflow.
 
 ## Working Pattern

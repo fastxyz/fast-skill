@@ -25,7 +25,7 @@ app.use(paymentMiddleware(
   {
     'GET /api/premium/*': {
       price: '$0.10',
-      network: 'arbitrum-sepolia',
+      network: 'base-sepolia',
     },
   },
   { url: 'http://localhost:4020' },
@@ -42,6 +42,10 @@ app.use(paymentMiddleware(
 
 ## Checks
 
+- use a facilitator-supported network such as `base-sepolia`, `base`, `arbitrum`, `ethereum`, or `fast-mainnet`
+- if you expose `fast-testnet`, do not rely on the server defaults alone; provide the Fast token asset explicitly
+- route acceptance in `@fastxyz/x402-server` does not guarantee the facilitator can verify or settle that network
 - facilitator must be reachable from the API server
+- `express.json()` is required on the facilitator process
 - facilitator wallet must hold gas on EVM settlement networks
 - Fast payments verify differently from EVM authorizations

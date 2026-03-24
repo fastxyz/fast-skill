@@ -33,5 +33,6 @@ const result = await allset.sendToExternal({
 
 - `to` must be `0x...`
 - `amount` is raw base units
-- use `@fastxyz/allset-sdk/node` for runtime execution; the root package is pure-helper only
+- bundled AllSet chain keys are `ethereum`, `arbitrum`, and `base`
+- use `@fastxyz/allset-sdk/node` for explicit runtime imports; the root package currently re-exports the same runtime APIs too
 - withdrawal may fail at the relayer leg even after the Fast-side action is created

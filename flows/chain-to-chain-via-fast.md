@@ -61,9 +61,10 @@ Wait until the destination EVM wallet actually receives the funds before treatin
 
 - explain the two-leg model to the user
 - verify support for both legs before implementing
+- bundled AllSet chain keys are `ethereum`, `arbitrum`, and `base`
 - the example shows Arbitrum -> Fast -> Base, but any route still needs both legs shipped in the current SDK config
 - wait for the deposit leg to settle on Fast before starting the withdrawal leg
 - wait for the withdrawal leg to settle on the destination EVM chain before treating the transfer as complete
-- use `@fastxyz/allset-sdk/node` for execution examples
+- use `@fastxyz/allset-sdk/node` for explicit runtime examples; the root package currently re-exports the same runtime APIs too
 - the intermediate Fast address should be the same wallet that signs the withdrawal leg
 - do not hide timing or relayer risk
