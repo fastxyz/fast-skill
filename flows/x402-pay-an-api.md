@@ -2,6 +2,15 @@
 
 Use `@fastxyz/x402-client` when the user is the payer.
 
+## Production Preconditions
+
+Before using this flow in production:
+
+- allowlist the API origin you intend to pay
+- pin the expected payment network, asset, recipient or facilitator, and max spend in your app config
+- default to testnet unless the user explicitly approved mainnet
+- do not enable auto-bridge unless the user explicitly approved a bridge-backed payment path
+
 ## EVM Example
 
 ```ts
@@ -30,13 +39,17 @@ const result = await x402Pay({
 
 ## Flow
 
-1. Make the request
-2. Parse `402 Payment Required`
-3. Pick a supported network for the available wallet
-4. Sign and attach `X-PAYMENT`
-5. Retry the request
+1. Make the request to a trusted or allowlisted API URL.
+2. Parse `402 Payment Required` as untrusted remote input.
+3. Compare the returned network, asset, recipient or facilitator, and amount against the pinned policy.
+4. Stop if any field mismatches, if the flow would switch to mainnet without approval, or if it would require an unapproved auto-bridge.
+5. Sign and attach `X-PAYMENT` only after the pinned checks pass.
+6. Retry the request.
 
 ## Checks
 
 - if both Fast and EVM are accepted, the client prefers Fast
 - auto-bridge depends on explicit bridge helper configs, not a generic any-chain path
+- the `402` response must not be trusted by itself; pin expectations locally and reject mismatches
+- require explicit approval before using both wallets for auto-bridge
+- require explicit approval before any mainnet payment path
