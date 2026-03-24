@@ -1,7 +1,7 @@
 interface:
   display_name: "FAST Skill"
   short_description: "Route FAST SDK, bridge, and x402 package tasks"
-  default_prompt: "Use $fast-skill to choose the right FAST package and implement a FAST wallet, bridge, or x402 flow with the shipped @fastxyz packages."
+  default_prompt: "Use $fast-skill to choose the right FAST package and implement a FAST wallet, bridge, or x402 flow with the shipped @fastxyz packages. Read bundled local docs from references/*.md and flows/*.md relative to SKILL.md instead of assuming GitHub URLs."
 
 policy:
   allow_implicit_invocation: true

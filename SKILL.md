@@ -25,6 +25,15 @@ Single entrypoint for the FAST SDK ecosystem.
 npx skills add fastxyz/fast-skill
 ```
 
+## Bundled Docs
+
+This skill ships its own Markdown docs inside the installed skill directory.
+
+- Treat `references/*.md` and `flows/*.md` as local bundled files, not web URLs.
+- Resolve them relative to this `SKILL.md`.
+- Open the file path directly if your runtime does not expose clickable Markdown links.
+- Do not assume GitHub access is required to read these docs.
+
 ## Example Requests
 
 - "Check my FAST testnet balance and send SET to another `fast1...` address"
@@ -50,25 +59,25 @@ If an umbrella x402 package is introduced later, treat it as a wrapper. The curr
 
 ## Start Here
 
-Read [references/capabilities.md](./references/capabilities.md) first when the request involves multiple packages or unclear support.
+Read `references/capabilities.md` first when the request involves multiple packages or unclear support.
 
 Then route by task:
 
-- Fast wallet, balance, send, token info, signatures: [references/fast-sdk.md](./references/fast-sdk.md)
-- Bridge between Fast and EVM: [references/allset-sdk.md](./references/allset-sdk.md)
-- Pay for a protected API: [references/x402-client.md](./references/x402-client.md)
-- Add payments to an API: [references/x402-server.md](./references/x402-server.md)
-- Run verification or settlement infrastructure: [references/x402-facilitator.md](./references/x402-facilitator.md)
+- Fast wallet, balance, send, token info, signatures: `references/fast-sdk.md`
+- Bridge between Fast and EVM: `references/allset-sdk.md`
+- Pay for a protected API: `references/x402-client.md`
+- Add payments to an API: `references/x402-server.md`
+- Run verification or settlement infrastructure: `references/x402-facilitator.md`
 
 Load a flow playbook when the user asks for an end-to-end scenario:
 
-- Fast to Fast transfer: [flows/fast-to-fast-payment.md](./flows/fast-to-fast-payment.md)
-- EVM to Fast deposit: [flows/evm-to-fast-deposit.md](./flows/evm-to-fast-deposit.md)
-- Fast to EVM withdraw: [flows/fast-to-evm-withdraw.md](./flows/fast-to-evm-withdraw.md)
-- Top up Fast wallet via hosted ramp: [flows/top-up-fast-wallet-via-ramp.md](./flows/top-up-fast-wallet-via-ramp.md)
-- Chain to chain via Fast: [flows/chain-to-chain-via-fast.md](./flows/chain-to-chain-via-fast.md)
-- Pay an x402 API: [flows/x402-pay-an-api.md](./flows/x402-pay-an-api.md)
-- Protect an x402 API: [flows/x402-protect-an-api.md](./flows/x402-protect-an-api.md)
+- Fast to Fast transfer: `flows/fast-to-fast-payment.md`
+- EVM to Fast deposit: `flows/evm-to-fast-deposit.md`
+- Fast to EVM withdraw: `flows/fast-to-evm-withdraw.md`
+- Top up Fast wallet via hosted ramp: `flows/top-up-fast-wallet-via-ramp.md`
+- Chain to chain via Fast: `flows/chain-to-chain-via-fast.md`
+- Pay an x402 API: `flows/x402-pay-an-api.md`
+- Protect an x402 API: `flows/x402-protect-an-api.md`
 
 ## Routing Rules
 
@@ -82,7 +91,7 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 
 - `@fastxyz/sdk` ships `testnet` and `mainnet` defaults and can also load custom named networks from config.
 - `@fastxyz/allset-sdk` ships bundled testnet routes only: `ethereum` (chain ID `11155111`), `arbitrum` (`421614`), and `base` (`8453`). The bundled mainnet `chains` map is empty.
-- x402 client, server, and facilitator do not expose the same network set. Check [references/capabilities.md](./references/capabilities.md) before promising an end-to-end paid API flow.
+- x402 client, server, and facilitator do not expose the same network set. Check `references/capabilities.md` before promising an end-to-end paid API flow.
 
 ### 3. Treat support limits as code-level constraints
 
@@ -102,7 +111,7 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 ## Common Issues
 
 - If the request only says `x402` or `402`, confirm it is specifically about the FAST `@fastxyz/*` packages before routing here.
-- If the user asks for unsupported routes or token mappings, stop and cite the shipped constraint from [references/capabilities.md](./references/capabilities.md) instead of approximating a solution.
+- If the user asks for unsupported routes or token mappings, stop and cite the shipped constraint from `references/capabilities.md` instead of approximating a solution.
 - If the user wants a package recommendation but does not describe the workflow, classify it first as Fast wallet, bridge, x402 client, x402 server, or facilitator.
 - If the user asks for AllSet chains named `ethereum-sepolia` or `arbitrum-sepolia`, translate that request back to the shipped AllSet chain keys `ethereum` and `arbitrum` before coding.
 - If the user wants end-to-end x402 on `arbitrum-sepolia` or `ethereum-sepolia`, stop and cite the current facilitator limits instead of pretending the full stack supports them.
