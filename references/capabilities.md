@@ -56,15 +56,17 @@ Use this file to decide which FAST package owns a request and whether the reques
 - Primary APIs: `paymentMiddleware(...)` and `paywall(...)`
 - Low-level helpers are also exported: `createPaymentRequirement(...)`, `createPaymentRequired(...)`, `verifyPayment(...)`, `settlePayment(...)`, `verifyAndSettle(...)`, `parsePrice(...)`, `getNetworkConfig(...)`, `encodePayload(...)`, `decodePayload(...)`
 - Role: create 402 requirements and forward verify/settle work to a facilitator
-- The only hard rejection is the deprecated alias `fast`. Route acceptance is broader than the real built-in config.
+- The only hard rejection is the deprecated alias `fast`.
 - Built-in `NETWORK_CONFIGS` currently resolve concrete asset metadata for:
+  - `fast-testnet`
   - `fast-mainnet`
-  - `arbitrum`
-  - `ethereum`
+  - `ethereum-sepolia`
+  - `arbitrum-sepolia`
   - `base`
   - `base-sepolia`
-- Any other network name falls back to a generic asset `0x0000000000000000000000000000000000000000` with 6 decimals.
-- Do not describe `fast-testnet`, `arbitrum-sepolia`, or `ethereum-sepolia` as turnkey server defaults today.
+  - `arbitrum`
+  - `ethereum`
+- Any other network name falls back to a generic asset `0x0000000000000000000000000000000000000000` with 6 decimals. Do not invent support just because the helper has a fallback.
 
 ### x402 Facilitator
 
@@ -72,13 +74,14 @@ Use this file to decide which FAST package owns a request and whether the reques
 - Role: verify payments and settle EVM authorizations
 - Fast networks in code: `fast-testnet`, `fast-mainnet`
 - Current built-in EVM chain map loads:
+  - `arbitrum-sepolia`
   - `arbitrum`
-  - `ethereum`
-  - `base`
   - `base-sepolia`
-- `arbitrum-sepolia` and `ethereum-sepolia` currently fail facilitator verify/settle with `invalid_network`.
+  - `base`
+  - `ethereum`
+  - `ethereum-sepolia`
 - `evmPrivateKey` is required for EVM settlement. Fast settlement is already on-chain and becomes a no-op.
-- `FacilitatorConfig.chains` is declared in the public type, but the current verify/settle path still uses the built-in chain map.
+- `FacilitatorConfig.chains` extends the built-in chain map instead of replacing it.
 
 ## Decision Rules
 
@@ -101,6 +104,5 @@ Stop and call out the limitation before coding when:
 - the requested AllSet token is not the shipped `USDC`, `fastUSDC`, or `testUSDC` mapping
 - the request assumes all x402 networks support auto-bridge
 - the request assumes the x402 client network list equals end-to-end server + facilitator support
-- the request assumes `fast-testnet` has a turnkey server-side stablecoin default without explicit asset configuration
 - the remote `402` payload asks for a network, asset, recipient, facilitator, or amount that does not match the locally pinned payment policy
 - the request assumes a single umbrella x402 package surface when the codebase actually uses role-specific packages
