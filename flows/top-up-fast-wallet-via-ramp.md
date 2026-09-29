@@ -1,69 +1,98 @@
-# Top Up Fast Wallet Via Hosted Ramp
+# Add fastUSD Through Supported Hosted Routes
 
-Use this flow when the user needs more Fast-side USDC for the next step and may already have a known
-`fast1...` address.
+This historical flow path is retained for existing links. The hosted routes
+below replace the retired ramp endpoint.
+
+Use this flow when the user needs more native **fastUSD** on Fast **mainnet** and
+may already have a known `fast1...` address.
 
 ## Trigger
 
 Offer this when:
 
-- the next action requires Fast-side USDC or `fastUSDC`
-- the current Fast balance is insufficient for that action
-- the user can open a browser and complete a hosted payment flow
+- the wallet network is confirmed as Fast mainnet
+- the next action requires fastUSD on Fast and the current balance is insufficient
+- the user can open a browser and complete a hosted funding flow
 
-Do not use this flow if the user asked for a code-level bridge
-implementation instead of an interactive top-up path.
+The hosted `/usdc` route is suitable when the user wants the Fast app to guide
+funding with USDC from another network, including from an EVM wallet they
+control. Before any USDC transfer, confirm the source EVM network and token
+are supported by the route shown in the app; do not infer that every EVM
+network or USDC contract is accepted. If they instead want the agent to
+construct and submit an EVM-to-Fast bridge transaction directly, use the
+bridge flow.
 
-## Link Contract
+## Supported Routes
 
-Base URL:
+These are the only supported hosted funding URLs:
 
-```text
-https://ramp.fast.xyz/
+| Method        | URL                                                               |
+| ------------- | ----------------------------------------------------------------- |
+| Card          | `https://app.fast.xyz/card?to=<fast-address>`                     |
+| External USDC | `https://app.fast.xyz/usdc?to=<fast-address>`                     |
+| Coinbase      | `https://app.fast.xyz/crypto?supplier=coinbase&to=<fast-address>` |
+| Swapper       | `https://app.fast.xyz/crypto?supplier=swapper&to=<fast-address>`  |
+
+All four routes are intended to credit **fastUSD** on Fast. USDC is an external
+source asset; there is no separate native USDC balance on Fast. Depending on
+the route, funds may first be in an EVM account or await a bridge/settlement
+step. Opening a link or completing an initial payment does not prove the Fast
+wallet has been credited; confirm its Fast balance before continuing.
+
+## CLI Commands
+
+With a CLI release that includes these routes, use `fast fund --help` to check
+availability. The CLI prints the URL; it does not complete a purchase.
+
+```sh
+fast fund --network mainnet
+fast fund card --network mainnet
+fast fund usdc --network mainnet
+fast fund crypto --supplier coinbase --network mainnet
+fast fund crypto --supplier swapper --network mainnet
 ```
 
-Parameters:
-
-- `to`: Fast receiver wallet address query parameter
-- no amount prefill is currently documented for the hosted root flow
-
-Examples:
-
-```text
-https://ramp.fast.xyz/?to=fast1...
-```
+`fast fund` opens the interactive method selector. For `--json` or
+`--non-interactive`, use one of the four explicit route commands. The address
+defaults to the active account; `--address` overrides it. Card and crypto
+routes also accept `--amount` as an optional prefill. The separate
+`fast fund usdc crypto <amount> --chain <chain>` command performs an EVM-to-Fast
+bridge rather than printing a hosted purchase link.
 
 ## Agent Behavior
 
-1. Confirm or derive the user's Fast address.
-2. If the Fast address is known, prefer a direct link with `to`.
-3. If the Fast address is not known, send the bare hosted ramp link and tell the user they can enter the receiver wallet address on the page.
-4. Tell the user to open the hosted ramp link and complete the payment in the browser.
-5. Do not claim the agent can complete KYC, card entry, or the purchase itself.
-6. After the user says they are done, re-check the Fast balance before proceeding.
-
-## Messaging Guidance
-
-Keep the language simple and operational:
-
-- say the link tops up Fast-side USDC to their `fast1...` wallet
-- say `to` fills the receiver wallet address on the hosted page
-- if the address is unknown, tell the user they can open the bare link and enter it there
-- tell the user to come back after the payment completes
+1. Confirm that the wallet is on Fast mainnet, then confirm or derive its Fast
+   address. For testnet, use a separately verified testnet funding method.
+2. Ask which supported route they prefer if it is not clear from the request.
+   For external USDC, have the user confirm the source chain and token against
+   the app's supported options before sending anything.
+3. Use the exact route above and URL-encode the `to` address.
+4. Tell the user to open the link and complete the hosted flow themselves. Do
+   not imply the agent can complete card entry, KYC, or purchase steps.
+5. After the user says they are done, re-check the Fast balance before proceeding.
 
 ## Example Response
 
 ```text
-Your Fast-side USDC balance is too low for the next step.
+Your Fast wallet needs more fastUSD for the next step. Choose a supported
+funding method:
 
-Top up here:
-https://ramp.fast.xyz/?to=fast1...
+Card: https://app.fast.xyz/card?to=fast1...
+USDC from another network: https://app.fast.xyz/usdc?to=fast1...
+Coinbase: https://app.fast.xyz/crypto?supplier=coinbase&to=fast1...
+Swapper: https://app.fast.xyz/crypto?supplier=swapper&to=fast1...
 
-That link prefills your Fast receiver wallet address on the hosted page. Complete the purchase in the browser, then tell me when you're done and I'll re-check your balance before continuing.
+These routes are intended to credit fastUSD on Fast. Funds may still be on an
+EVM network or awaiting bridge/settlement after an intermediate step. Complete
+the flow in your browser, then tell me when you're done so I can confirm the
+Fast balance before continuing.
 ```
 
 ## Checks
 
-- `to` must be a valid `fast1...` address when included
-- the hosted root ramp flow is mainnet-only
+- `to` must be the intended valid `fast1...` receiver address
+- confirm Fast mainnet before offering a hosted app link or CLI route
+- for external USDC, confirm the source EVM network and token are supported by
+  the route before sending funds; do not assume an arbitrary chain is accepted
+- use only the four listed routes; do not substitute an unverified provider URL
 - always re-check balance after the user returns
