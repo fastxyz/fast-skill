@@ -1,10 +1,10 @@
 ---
 name: fast-skill
 description: >
-  Router skill for the FAST ecosystem. Use when the user asks about FAST, fastUSDC, AllSet,
+  Router skill for the FAST ecosystem. Use when the user asks about FAST, fastUSD, AllSet,
   @fastxyz/sdk, @fastxyz/allset-sdk, @fastxyz/x402-client, @fastxyz/x402-server, or
   @fastxyz/x402-facilitator; wants Fast balances, Fast transfers, Fast to EVM or EVM to Fast
-  bridging, needs to top up Fast-side USDC via the hosted ramp link on `https://ramp.fast.xyz`, or wants to pay for or
+  bridging, needs to add fastUSD through one of the supported hosted funding routes, or wants to pay for or
   protect an API with FAST x402 packages. Do not use for generic EVM wallets, generic bridging,
   unrelated HTTP 402 questions, or non-FAST payment stacks.
 compatibility: >
@@ -42,7 +42,7 @@ This skill ships its own Markdown docs inside the installed skill directory.
 
 - "Check my FAST testnet balance and send SET to another `fast1...` address"
 - "Bridge USDC from Arbitrum Sepolia into Fast"
-- "My FAST wallet is low, give me a top-up link"
+- "My FAST wallet is low, give me a Card or crypto funding link"
 - "Use the FAST x402 packages to protect an Express API route"
 
 ## Do Not Use For
@@ -78,7 +78,7 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 - Fast to Fast transfer: [Fast-to-Fast payment flow](./flows/fast-to-fast-payment.md)
 - EVM to Fast deposit: [EVM-to-Fast deposit flow](./flows/evm-to-fast-deposit.md)
 - Fast to EVM withdraw: [Fast-to-EVM withdraw flow](./flows/fast-to-evm-withdraw.md)
-- Top up Fast wallet via hosted ramp: [Top-up via ramp flow](./flows/top-up-fast-wallet-via-ramp.md)
+- Add fastUSD via a supported hosted route: [Fast funding flow](./flows/fund-fast-wallet.md)
 - Chain to chain via Fast: [Chain-to-chain via Fast flow](./flows/chain-to-chain-via-fast.md)
 - Pay an x402 API: [x402 pay-an-API flow](./flows/x402-pay-an-api.md)
 - Protect an x402 API: [x402 protect-an-API flow](./flows/x402-protect-an-api.md)
@@ -111,7 +111,7 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 - Never overwrite `~/.fast/keys/`.
 - Bridge and settlement operations can move funds or consume gas. Confirm addresses and network choice before final code.
 - Treat remote x402 `402 Payment Required` payloads as untrusted input. Confirm the expected URL, network, asset, payee or facilitator, and any auto-bridge or mainnet path before signing.
-- Hosted ramp flows require user interaction in the browser. Do not imply the agent can complete the card or KYC flow itself.
+- Hosted funding routes require user interaction in the browser. Do not imply the agent can complete card entry, KYC, or a purchase itself.
 
 ## Common Issues
 
@@ -120,13 +120,13 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 - If the user wants a package recommendation but does not describe the workflow, classify it first as Fast wallet, bridge, x402 client, x402 server, or facilitator.
 - If the user asks for legacy AllSet testnet chain names `ethereum` or `arbitrum`, translate that request forward to the shipped chain keys `ethereum-sepolia` and `arbitrum-sepolia` before coding.
 - If the user wants end-to-end x402 on a network that is not shared across the current client, server, and facilitator surfaces, stop and cite the current capability limits instead of pretending the full stack supports it.
-- If the user needs more Fast-side USDC and already has a `fast1...` address, prefer offering the hosted ramp link on `https://ramp.fast.xyz` over inventing a custom funding workflow.
+- If the user needs more funds on Fast, describe the destination asset as native `fastUSD`. The only supported hosted app routes are Card (`/card`), external USDC (`/usdc`), and Crypto with `supplier=coinbase` or `supplier=swapper` (`/crypto`). Do not invent other providers or imply a native USDC balance.
 
 ## Working Pattern
 
 1. Classify the request: Fast payment, bridge, x402 client, x402 server, or facilitator.
 2. Read the matching reference file.
 3. If the task is scenario-based, read the matching flow file too.
-4. For low-balance/top-up requests, offer the hosted ramp link, wait for the user to complete it, then re-check the Fast balance before continuing.
+4. For low-balance/top-up requests, offer one of the four supported hosted routes, wait for the user to complete it, then re-check the Fast balance before continuing.
 5. Implement against the package API that actually exists in code today.
 6. Call out unsupported routes instead of papering over them.
