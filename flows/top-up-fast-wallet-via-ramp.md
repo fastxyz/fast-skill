@@ -16,8 +16,11 @@ Offer this when:
 
 The hosted `/usdc` route is suitable when the user wants the Fast app to guide
 funding with USDC from another network, including from an EVM wallet they
-control. If they instead want the agent to construct and submit an EVM-to-Fast
-bridge transaction directly, use the bridge flow.
+control. Before any USDC transfer, confirm the source EVM network and token
+are supported by the route shown in the app; do not infer that every EVM
+network or USDC contract is accepted. If they instead want the agent to
+construct and submit an EVM-to-Fast bridge transaction directly, use the
+bridge flow.
 
 ## Supported Routes
 
@@ -61,6 +64,8 @@ bridge rather than printing a hosted purchase link.
 1. Confirm that the wallet is on Fast mainnet, then confirm or derive its Fast
    address. For testnet, use a separately verified testnet funding method.
 2. Ask which supported route they prefer if it is not clear from the request.
+   For external USDC, have the user confirm the source chain and token against
+   the app's supported options before sending anything.
 3. Use the exact route above and URL-encode the `to` address.
 4. Tell the user to open the link and complete the hosted flow themselves. Do
    not imply the agent can complete card entry, KYC, or purchase steps.
@@ -87,5 +92,7 @@ Fast balance before continuing.
 
 - `to` must be the intended valid `fast1...` receiver address
 - confirm Fast mainnet before offering a hosted app link or CLI route
+- for external USDC, confirm the source EVM network and token are supported by
+  the route before sending funds; do not assume an arbitrary chain is accepted
 - use only the four listed routes; do not substitute an unverified provider URL
 - always re-check balance after the user returns
