@@ -1,5 +1,8 @@
 # Add fastUSD Through Supported Hosted Routes
 
+This historical flow path is retained for existing links. The hosted routes
+below replace the retired ramp endpoint.
+
 Use this flow when the user needs more native **fastUSD** on Fast **mainnet** and
 may already have a known `fast1...` address.
 

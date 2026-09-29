@@ -80,7 +80,7 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 - Fast to Fast transfer: [Fast-to-Fast payment flow](./flows/fast-to-fast-payment.md)
 - EVM to Fast deposit: [EVM-to-Fast deposit flow](./flows/evm-to-fast-deposit.md)
 - Fast to EVM withdraw: [Fast-to-EVM withdraw flow](./flows/fast-to-evm-withdraw.md)
-- Add fastUSD on Fast mainnet via a supported hosted route: [Fast funding flow](./flows/fund-fast-wallet.md)
+- Add fastUSD on Fast mainnet via a supported hosted route: [Fast funding flow](./flows/top-up-fast-wallet-via-ramp.md)
 - Chain to chain via Fast: [Chain-to-chain via Fast flow](./flows/chain-to-chain-via-fast.md)
 - Pay an x402 API: [x402 pay-an-API flow](./flows/x402-pay-an-api.md)
 - Protect an x402 API: [x402 protect-an-API flow](./flows/x402-protect-an-api.md)
