@@ -4,7 +4,8 @@ description: >
   Router skill for the FAST ecosystem. Use when the user asks about FAST, fastUSD, AllSet,
   @fastxyz/sdk, @fastxyz/allset-sdk, @fastxyz/x402-client, @fastxyz/x402-server, or
   @fastxyz/x402-facilitator; wants Fast balances, Fast transfers, Fast to EVM or EVM to Fast
-  bridging, needs to add fastUSD through one of the supported hosted funding routes, or wants to pay for or
+  bridging, needs to add fastUSD on Fast mainnet through a supported hosted funding route,
+  or wants to pay for or
   protect an API with FAST x402 packages. Do not use for generic EVM wallets, generic bridging,
   unrelated HTTP 402 questions, or non-FAST payment stacks.
 compatibility: >
@@ -42,7 +43,7 @@ This skill ships its own Markdown docs inside the installed skill directory.
 
 - "Check my FAST testnet balance and send SET to another `fast1...` address"
 - "Bridge USDC from Arbitrum Sepolia into Fast"
-- "My FAST wallet is low, give me a Card or crypto funding link"
+- "My FAST mainnet wallet is low, give me a Card or crypto funding link"
 - "Use the FAST x402 packages to protect an Express API route"
 
 ## Do Not Use For
@@ -55,6 +56,7 @@ This skill ships its own Markdown docs inside the installed skill directory.
 
 - `@fastxyz/sdk`: `FastProvider`, `FastWallet`, browser/core helpers, config helpers, address and BCS utilities for direct Fast work
 - `@fastxyz/allset-sdk`: Fast <-> EVM bridge flows, intent builders, `AllSetProvider`, EVM wallet/executor helpers
+- `@fastxyz/cli` (`fast`): wallet commands and supported mainnet funding links; `fast fund` selects a hosted method interactively
 - `@fastxyz/x402-client`: pay 402-protected APIs
 - `@fastxyz/x402-server`: return 402 requirements and protect routes
 - `@fastxyz/x402-facilitator`: verify and settle x402 payments
@@ -78,7 +80,7 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 - Fast to Fast transfer: [Fast-to-Fast payment flow](./flows/fast-to-fast-payment.md)
 - EVM to Fast deposit: [EVM-to-Fast deposit flow](./flows/evm-to-fast-deposit.md)
 - Fast to EVM withdraw: [Fast-to-EVM withdraw flow](./flows/fast-to-evm-withdraw.md)
-- Add fastUSD via a supported hosted route: [Fast funding flow](./flows/fund-fast-wallet.md)
+- Add fastUSD on Fast mainnet via a supported hosted route: [Fast funding flow](./flows/fund-fast-wallet.md)
 - Chain to chain via Fast: [Chain-to-chain via Fast flow](./flows/chain-to-chain-via-fast.md)
 - Pay an x402 API: [x402 pay-an-API flow](./flows/x402-pay-an-api.md)
 - Protect an x402 API: [x402 protect-an-API flow](./flows/x402-protect-an-api.md)
@@ -120,13 +122,13 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 - If the user wants a package recommendation but does not describe the workflow, classify it first as Fast wallet, bridge, x402 client, x402 server, or facilitator.
 - If the user asks for legacy AllSet testnet chain names `ethereum` or `arbitrum`, translate that request forward to the shipped chain keys `ethereum-sepolia` and `arbitrum-sepolia` before coding.
 - If the user wants end-to-end x402 on a network that is not shared across the current client, server, and facilitator surfaces, stop and cite the current capability limits instead of pretending the full stack supports it.
-- If the user needs more funds on Fast, describe the destination asset as native `fastUSD`. The only supported hosted app routes are Card (`/card`), external USDC (`/usdc`), and Crypto with `supplier=coinbase` or `supplier=swapper` (`/crypto`). Do not invent other providers or imply a native USDC balance.
+- If the user needs more funds on Fast, check the wallet network first. On mainnet, the destination asset is native `fastUSD`, and the only supported hosted app routes are Card (`/card`), external USDC (`/usdc`), and Crypto with `supplier=coinbase` or `supplier=swapper` (`/crypto`). Do not offer these hosted links for testnet wallets, invent other providers, or imply a native USDC balance.
 
 ## Working Pattern
 
 1. Classify the request: Fast payment, bridge, x402 client, x402 server, or facilitator.
 2. Read the matching reference file.
 3. If the task is scenario-based, read the matching flow file too.
-4. For low-balance/top-up requests, offer one of the four supported hosted routes, wait for the user to complete it, then re-check the Fast balance before continuing.
+4. For low-balance/top-up requests, check the wallet network. Offer a hosted route only for Fast mainnet, wait for the user to complete it, then re-check the Fast balance before continuing. For testnet, use only a separately verified testnet funding method.
 5. Implement against the package API that actually exists in code today.
 6. Call out unsupported routes instead of papering over them.
