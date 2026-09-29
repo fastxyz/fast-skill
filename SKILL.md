@@ -1,7 +1,7 @@
 ---
 name: fast-skill
 description: >
-  Router skill for the FAST ecosystem. Use when the user asks about FAST, fastUSD, AllSet,
+  Router skill for the FAST ecosystem. Use when the user asks about FAST, fastUSD, fastUSDC, AllSet,
   @fastxyz/sdk, @fastxyz/allset-sdk, @fastxyz/x402-client, @fastxyz/x402-server, or
   @fastxyz/x402-facilitator; wants Fast balances, Fast transfers, Fast to EVM or EVM to Fast
   bridging, needs to add fastUSD on Fast mainnet through a supported hosted funding route,
