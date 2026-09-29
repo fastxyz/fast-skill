@@ -14,9 +14,10 @@ Offer this when:
 - the next action requires fastUSD on Fast and the current balance is insufficient
 - the user can open a browser and complete a hosted funding flow
 
-Do not use this flow for an EVM-to-Fast bridge implementation or when the user
-specifically wants to fund from an EVM wallet they control; use the bridge flow
-for that case.
+The hosted `/usdc` route is suitable when the user wants the Fast app to guide
+funding with USDC from another network, including from an EVM wallet they
+control. If they instead want the agent to construct and submit an EVM-to-Fast
+bridge transaction directly, use the bridge flow.
 
 ## Supported Routes
 
@@ -29,8 +30,11 @@ These are the only supported hosted funding URLs:
 | Coinbase      | `https://app.fast.xyz/crypto?supplier=coinbase&to=<fast-address>` |
 | Swapper       | `https://app.fast.xyz/crypto?supplier=swapper&to=<fast-address>`  |
 
-All four routes credit **fastUSD** on Fast. USDC is an external source asset;
-there is no separate native USDC balance on Fast.
+All four routes are intended to credit **fastUSD** on Fast. USDC is an external
+source asset; there is no separate native USDC balance on Fast. Depending on
+the route, funds may first be in an EVM account or await a bridge/settlement
+step. Opening a link or completing an initial payment does not prove the Fast
+wallet has been credited; confirm its Fast balance before continuing.
 
 ## CLI Commands
 
@@ -73,8 +77,10 @@ USDC from another network: https://app.fast.xyz/usdc?to=fast1...
 Coinbase: https://app.fast.xyz/crypto?supplier=coinbase&to=fast1...
 Swapper: https://app.fast.xyz/crypto?supplier=swapper&to=fast1...
 
-These routes credit fastUSD on Fast. Complete the flow in your browser, then
-tell me when you're done so I can re-check your balance.
+These routes are intended to credit fastUSD on Fast. Funds may still be on an
+EVM network or awaiting bridge/settlement after an intermediate step. Complete
+the flow in your browser, then tell me when you're done so I can confirm the
+Fast balance before continuing.
 ```
 
 ## Checks
