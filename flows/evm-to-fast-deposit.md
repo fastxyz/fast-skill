@@ -1,6 +1,6 @@
 # EVM To Fast Deposit
 
-This is an AllSet deposit flow using `@fastxyz/allset-sdk`. A person moving USDC from their own EVM address into their own Fast account can use the `fast` CLI skill (`fast fund usdc crypto`) instead.
+This is an AllSet deposit flow using `@fastxyz/allset-sdk`. A person moving USDC from their own EVM address into their own Fast account can use the `fast` CLI skill (`fast fund usdc crypto <amount> --chain <chain> --token USDC`) instead.
 
 ## Preconditions
 

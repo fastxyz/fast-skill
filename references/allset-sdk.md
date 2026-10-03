@@ -1,6 +1,6 @@
 # AllSet SDK
 
-Use this when the user wants to move value between Fast and an EVM chain in code. For a person bridging their own funds from the terminal, use the `fast` CLI skill (`fast fund usdc crypto`, `fast send --to-chain`) instead.
+Use this when the user wants to move value between Fast and an EVM chain in code. For a person bridging their own funds from the terminal, use the `fast` CLI skill (`fast fund usdc crypto <amount> --chain <chain> --token USDC` to bring USDC in, `fast send <0x...> <amount> --token USDC --to-chain <chain>` to send it out) instead.
 
 The package README is the full reference: `node_modules/@fastxyz/allset-sdk/README.md` after install.
 
