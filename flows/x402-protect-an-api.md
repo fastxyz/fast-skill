@@ -47,7 +47,7 @@ app.listen(3000);
 1. API returns 402 requirements for protected routes
 2. Client retries with `X-PAYMENT`
 3. Server asks facilitator to verify the payment
-4. Facilitator settles the payment
+4. For EVM payments, the facilitator settles the authorization; a Fast payment was already submitted on-chain by the client
 5. API serves the protected response
 
 ## Checks
@@ -59,3 +59,4 @@ app.listen(3000);
 - `express.json()` is required on the facilitator process
 - facilitator wallet must hold gas on EVM settlement networks
 - Fast payments verify differently from EVM authorizations
+- nothing stops the same Fast `X-PAYMENT` from being replayed: record each payment's transaction hash and refuse repeats

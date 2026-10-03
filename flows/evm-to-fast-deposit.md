@@ -36,6 +36,7 @@ On mainnet the deposited USDC is credited on Fast as `fastUSD`.
 - `receiverAddress` must be `fast1...`
 - `amount` is a base-unit string
 - the sender needs the chain's native gas token, or use `smartDeposit(...)` (EIP-7702) to pay gas in USDC
-- `executeDeposit` submits an ERC-20 approval first when the allowance is too low
+- `executeDeposit` sends an ERC-20 `approve` before every deposit, so it's two EVM transactions and two gas fees
+- on Arc, where gas is paid in USDC, `executeDeposit` throws `InsufficientBalanceError` when the balance can't cover the amount plus a gas reserve
 - the deposit is not on Fast until the bridge settles: check the Fast balance before treating it as received
 - unsupported chains or tokens should be called out before writing code

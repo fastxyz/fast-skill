@@ -19,7 +19,7 @@ Requires Node.js 20+. `@fastxyz/sdk` provides the `Signer` and `FastProvider` th
 
 ## Supported Directions
 
-- EVM -> Fast deposit: `executeDeposit(...)`, or `smartDeposit(...)` with EIP-7702 so gas is paid in USDC
+- EVM -> Fast deposit: `executeDeposit(...)` (it sends an ERC-20 `approve` before every deposit), or `smartDeposit(...)` with EIP-7702 so gas is paid in USDC
 - Fast -> EVM withdraw: `executeWithdraw(...)`
 - Fast -> EVM intent execution: `executeIntent(...)` with `buildTransferIntent`, `buildExecuteIntent`, `buildDepositBackIntent`, `buildRevokeIntent`
 
@@ -85,7 +85,7 @@ console.log(result.txHash);
 - `FastError` codes: `INVALID_PARAMS`, `INVALID_ADDRESS`, `TOKEN_NOT_FOUND`, `UNSUPPORTED_OPERATION`, `INSUFFICIENT_BALANCE`, `TX_FAILED`, `TX_INDETERMINATE`, `POST_PAYMENT_INCOMPLETE`
 - `IndeterminateTransactionError`: the submit result couldn't be correlated; inspect `txHash` and `recoveryEnvelope`, don't retry blindly
 - `PostPaymentRecoveryError`: the Fast transfer already succeeded and a later stage failed; reconcile before continuing
-- `InsufficientBalanceError` from `smartDeposit`: `required` vs `balance`
+- `InsufficientBalanceError` (`required` vs `balance`): from `smartDeposit`, and from `executeDeposit` on Arc, where the deposit must also leave a USDC gas reserve
 
 ## Use This Instead Of Other FAST Packages When
 

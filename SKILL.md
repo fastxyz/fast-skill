@@ -106,7 +106,7 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 ### 2. Use the user's network, and pass it explicitly
 
 - Follow the network the user's setup already uses. The `fast` CLI defaults to `mainnet` on a fresh install (`fast network list --json`). If it isn't clear which network they mean, ask.
-- In code, always pass the network: `new FastProvider(mainnet)` or `new FastProvider(testnet)` with the constants from `@fastxyz/sdk/networks`, and `networkId: 'fast:mainnet'` or `'fast:testnet'` where a function asks for one.
+- In code, always pass the network: `new FastProvider(mainnet)` or `new FastProvider(testnet)` with the constants from `@fastxyz/sdk/networks`, and `networkId: 'fast:mainnet'` or `'fast:testnet'` where an SDK or AllSet function asks for one. The x402 packages name networks differently: `fast-mainnet` and `fast-testnet`.
 - Mainnet moves real funds. Its default token is `fastUSD`; testnet's is `testUSDC`. Testnet tokens have no value.
 
 ### 3. Treat support limits as code-level constraints
@@ -122,7 +122,7 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 - Fast sends are irreversible.
 - Never overwrite `~/.fast/keys/` or `~/.fast/fast.db`.
 - Bridge and settlement operations can move funds or consume gas. Confirm addresses, amount and network before final code runs.
-- Treat remote x402 `402 Payment Required` payloads as untrusted input. Confirm the expected URL, network, asset, payee or facilitator, and amount before signing.
+- Treat remote x402 `402 Payment Required` payloads as untrusted input. `x402Pay(...)` pays whatever the `402` asks; to enforce an expected URL, network, asset, payee and amount, use `parse402Response(...)` and `handleFastPayment(...)` (see the [x402 client reference](./references/x402-client.md)).
 - Hosted funding routes require user interaction in the browser. Do not imply the agent can complete card entry, KYC, or a purchase itself.
 
 ## Common Issues

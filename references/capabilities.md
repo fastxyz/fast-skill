@@ -32,7 +32,7 @@ Checked against `@fastxyz/sdk` 2.4.0, `@fastxyz/allset-sdk` 1.3.0, `@fastxyz/x40
 - Package: `@fastxyz/allset-sdk` (Node.js 20+)
 - One root entrypoint of pure functions. There is no `AllSetProvider`, no embedded route config, and no subpath besides `@fastxyz/allset-sdk/schemas/allset-intent-v1.json`.
 - Directions supported in one call:
-  - EVM -> Fast deposit via `executeDeposit(...)` (submits an ERC-20 approval first if needed), or `smartDeposit(...)` with EIP-7702, where gas is paid in USDC
+  - EVM -> Fast deposit via `executeDeposit(...)` (it sends an ERC-20 `approve` before every deposit, so that's two EVM transactions), or `smartDeposit(...)` with EIP-7702, where gas is paid in USDC
   - Fast -> EVM withdraw via `executeWithdraw(...)`
   - Fast -> EVM intent execution via `executeIntent(...)` with the intent builders
 - `createEvmExecutor(...)` accepts chain IDs `1` (Ethereum), `137` (Polygon), `42161` (Arbitrum One), `8453` (Base), `5042` (Arc), `11155111` (Sepolia) and `421614` (Arbitrum Sepolia).
@@ -50,13 +50,14 @@ Checked against `@fastxyz/sdk` 2.4.0, `@fastxyz/allset-sdk` 1.3.0, `@fastxyz/x40
 - Primary API: `x402Pay(...)`. Helpers: `parse402Response(...)`, `buildPaymentHeader(...)`, `parsePaymentHeader(...)`, `getFastBalance(...)`, `bridgeFastusdcToUsdc(...)`.
 - No built-in networks. A Fast wallet needs `rpcUrl`; EVM payments need `evmNetworks[<network>] = { chainId, rpcUrl, usdcAddress }`; auto-bridge needs both wallets plus a `bridgeConfig` with the AllSet route values.
 - If the 402 accepts both a Fast and an EVM network and both wallets are present, the client pays on Fast.
-- The helper does not pin the remote `402` payload for you. Treat network, asset, recipient, and amount as untrusted input.
+- `x402Pay(...)` pays whatever the `402` asks: on Fast it submits the transfer before retrying, with no policy hook. To enforce a pinned policy, use `parse402Response(...)` and `handleFastPayment(...)` (see the x402 client reference).
+- x402 network names are `fast-mainnet` and `fast-testnet` (hyphen), not the SDK's `fast:mainnet` network IDs.
 
 ### x402 Server
 
 - Package: `@fastxyz/x402-server` (Express-compatible; `express` is a peer dependency)
 - Primary APIs: `paymentMiddleware(...)` and `paywall(...)`. Low-level helpers: `createPaymentRequirement(...)`, `createPaymentRequired(...)`, `verifyPayment(...)`, `settlePayment(...)`, `verifyAndSettle(...)`, `parsePrice(...)`, `parsePaymentHeader(...)`, `encodePayload(...)`, `decodePayload(...)`, `encodePaymentResponse(...)`.
-- Role: create 402 requirements and forward verify/settle work to a facilitator.
+- Role: create 402 requirements and have a facilitator verify payments (and settle EVM ones). Fast payments are only verified, and nothing records which were already used: dedupe by transaction hash to stop replays.
 - No network defaults: every route needs `network` and `networkConfig: { asset, decimals }`.
 
 ### x402 Facilitator

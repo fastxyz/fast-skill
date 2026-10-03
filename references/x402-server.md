@@ -65,7 +65,7 @@ app.listen(3000);
 
 - builds 402 response payloads for matched routes
 - parses `X-PAYMENT`
-- calls the facilitator to verify and settle payments
+- calls the facilitator to verify every payment, and to settle EVM payments. A Fast payment is already on-chain when the client retries (the client submits the transfer), so it is only verified
 - sets `X-PAYMENT-RESPONSE` after a successful payment
 - offers `paywall(...)` as a single-route version of `paymentMiddleware(...)`
 
@@ -75,6 +75,10 @@ app.listen(3000);
 - `network`: the x402 network name, such as `'fast-mainnet'`, `'fast-testnet'` or `'base'`
 - `networkConfig: { asset, decimals, extra? }`: required; there are no network defaults
 - optional `config: { description?, mimeType?, asset? }`
+
+## Replay
+
+Neither this package nor the facilitator remembers which Fast payments were already used: the same `X-PAYMENT` verifies again on a later request. Record each Fast payment's transaction hash and refuse one you have already served.
 
 ## Facilitator Dependency
 

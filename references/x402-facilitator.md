@@ -54,7 +54,7 @@ app.listen(4402);
 
 - `GET /supported`: list the configured payment kinds
 - `POST /verify`: validate an incoming payment payload against a requirement
-- `POST /settle`: settle a verified payment
+- `POST /settle`: settle a verified payment (an EVM authorization; a Fast payment is already on-chain)
 
 ## Config Requirements
 
@@ -67,6 +67,7 @@ app.listen(4402);
 
 - Fund the facilitator wallet with native gas on every EVM network you settle on.
 - Re-verify a payment before settlement.
+- The facilitator keeps no record of verified Fast payments, so the same payment verifies again. The API (or a layer in front of it) must refuse a transaction hash it has already served.
 - `GET /supported` is the source of truth for what a running facilitator accepts.
 
 ## Good Fit
