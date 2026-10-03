@@ -4,9 +4,9 @@ description: >
   Router skill for the FAST ecosystem. Use when the user asks about FAST, fastUSD, AllSet,
   @fastxyz/sdk, @fastxyz/allset-sdk, @fastxyz/x402-client, @fastxyz/x402-server, or
   @fastxyz/x402-facilitator; wants to build Fast transfers, Fast to EVM or EVM to Fast bridging,
-  or x402 payments into their own code; needs to add fastUSD on Fast mainnet through a supported
-  hosted funding route; or asks which FAST package fits. For managing a person's balance, sends,
-  funding or payment requests from the terminal, route to the `fast` CLI skill. Do not use for
+  or x402 payments into their own code; needs hosted fastUSD funding links for a Fast address its
+  code manages; or asks which FAST package fits. For a person managing their own wallet (balance,
+  sends, adding funds, payment requests) from the terminal, route to the `fast` CLI skill. Do not use for
   generic EVM wallets, generic bridging, unrelated HTTP 402 questions, or non-FAST payment stacks.
 compatibility: >
   Portable across Claude- and Codex-style skill runtimes with Node.js 20+ package install support
@@ -47,14 +47,14 @@ This skill ships its own Markdown docs inside the installed skill directory.
 
 | The user wants to... | Use |
 | --- | --- |
-| Manage their own money: balances, sends, adding funds, payment requests, bridging, paying an x402 URL | The `fast` CLI skill (`https://skill.fast.xyz/skill.md`). It runs the `fast` CLI for them and carries the agent playbook (network, confirmations, fees). Don't write SDK code for this. |
-| Build Fast payments, bridging or x402 into their own code | This skill |
+| Manage their own money: balances, sends, adding funds to their own wallet, payment requests, bridging, paying an x402 URL | The `fast` CLI skill (`https://skill.fast.xyz/skill.md`). It runs the `fast` CLI for them (`fast fund …` prints the hosted funding links) and carries the agent playbook (network, confirmations, fees). Don't write SDK code for this. |
+| Build Fast payments, bridging, x402, or hosted funding links for addresses their code manages into their own code | This skill |
 
 ## Example Requests
 
 - "Send fastUSD from my Node service to a `fast1...` address"
 - "Bridge USDC from Base into Fast in code"
-- "My FAST mainnet wallet is low, give me a Card or crypto funding link"
+- "Show my app's users a Card or crypto link to add fastUSD to their Fast address"
 - "Use the FAST x402 packages to protect an Express API route"
 
 ## Do Not Use For
@@ -90,7 +90,7 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 - Fast to Fast transfer: [Fast-to-Fast payment flow](./flows/fast-to-fast-payment.md)
 - EVM to Fast deposit: [EVM-to-Fast deposit flow](./flows/evm-to-fast-deposit.md)
 - Fast to EVM withdraw: [Fast-to-EVM withdraw flow](./flows/fast-to-evm-withdraw.md)
-- Add fastUSD on Fast mainnet via a supported hosted route: [Fast funding flow](./flows/top-up-fast-wallet-via-ramp.md)
+- Hosted fastUSD funding links for an address your code manages: [Fast funding flow](./flows/top-up-fast-wallet-via-ramp.md)
 - Chain to chain via Fast: [Chain-to-chain via Fast flow](./flows/chain-to-chain-via-fast.md)
 - Pay an x402 API: [x402 pay-an-API flow](./flows/x402-pay-an-api.md)
 - Protect an x402 API: [x402 protect-an-API flow](./flows/x402-protect-an-api.md)
@@ -130,13 +130,13 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 - If the request only says `x402` or `402`, confirm it is specifically about the FAST `@fastxyz/*` packages before routing here.
 - If the user asks for unsupported routes or token mappings, stop and cite the constraint from `references/capabilities.md` instead of approximating a solution.
 - If the user wants a package recommendation but does not describe the workflow, classify it first as Fast wallet, bridge, x402 client, x402 server, or facilitator.
-- If the user needs more funds on Fast, check the wallet network first. On mainnet, the destination asset is native `fastUSD`, and the only supported hosted app routes are Card (`/card`), external USDC (`/usdc`), and Crypto with `supplier=coinbase` or `supplier=swapper` (`/crypto`). Do not offer these hosted links for testnet wallets, invent other providers, or imply a native USDC balance.
+- If code needs to send someone to add funds to a Fast address it manages, check the wallet network first (a person topping up their own CLI wallet goes to the `fast` CLI skill). On mainnet, the destination asset is native `fastUSD`, and the only supported hosted app routes are Card (`/card`), external USDC (`/usdc`), and Crypto with `supplier=coinbase` or `supplier=swapper` (`/crypto`). Do not offer these hosted links for testnet wallets, invent other providers, or imply a native USDC balance.
 
 ## Working Pattern
 
 1. Classify the request: the person's own money (route to the `fast` CLI skill), Fast payment code, bridge, x402 client, x402 server, or facilitator.
 2. Read the matching reference file, then the installed package's README for the exact API.
 3. If the task is scenario-based, read the matching flow file too.
-4. For low-balance/top-up requests, check the wallet network. Offer a hosted route only for Fast mainnet, wait for the user to complete it, then re-check the Fast balance before continuing. For testnet, use only a separately verified testnet funding method.
+4. For low-balance/top-up requests on a wallet your code manages, check the wallet network. Offer a hosted route only for Fast mainnet, wait for the user to complete it, then re-check the Fast balance before continuing. For testnet, use only a separately verified testnet funding method.
 5. Implement against the package API that actually exists in the installed version.
 6. Call out unsupported routes instead of papering over them.

@@ -88,7 +88,7 @@ try {
   const install = [
     ...imported.map((name) => `${name}@${versions[name]}`),
     'typescript@5',
-    '@types/node@22',
+    `@types/node@${process.versions.node.split('.')[0]}`, // type-check against the Node.js running this check
     ...(needsExpress ? ['express@5', '@types/express@5'] : []),
     ...(needsViem ? ['viem'] : []),
   ];
@@ -159,10 +159,13 @@ console.log(JSON.stringify(results));
       execFileSync(path.join(tmp, 'node_modules', '.bin', 'tsc'), ['-p', 'tsconfig.json'], { cwd: tmp, encoding: 'utf8' });
     } catch (error) {
       const output = `${error.stdout ?? ''}${error.stderr ?? ''}`;
-      for (const line of output.split('\n').filter(Boolean)) {
+      const lines = output.split('\n').filter(Boolean);
+      for (const line of lines) {
         const fileName = line.match(/examples\/([^(]+)\(/)?.[1];
         failures.push(fileName ? `${exampleFiles[fileName]}: ${line.slice(line.indexOf(':') + 1).trim()}` : line);
       }
+      // A failure without diagnostics (tsc missing, killed, ...) must not pass as success.
+      if (lines.length === 0) failures.push(`TypeScript check failed without diagnostics: ${error.message}`);
     }
   }
 } finally {
