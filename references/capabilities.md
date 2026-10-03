@@ -18,7 +18,7 @@ Checked against `@fastxyz/sdk` 2.4.0, `@fastxyz/allset-sdk` 1.3.0, `@fastxyz/x40
 ### Fast SDK
 
 - Package: `@fastxyz/sdk` (Node.js 20+)
-- Entrypoints: `@fastxyz/sdk` (`Signer`, `FastProvider`, `TransactionBuilder`, `MultiSigWorkflow`, helpers), `@fastxyz/sdk/networks` (`mainnet`, `testnet`), `@fastxyz/sdk/core` (pure functions), `@fastxyz/sdk/wallet` (Fast app wallet connection and key handover), `@fastxyz/sdk/multisig`. There is no `@fastxyz/sdk/browser` entrypoint and no `FastWallet` class.
+- Entrypoints: `@fastxyz/sdk` (`Signer`, `FastProvider`, `TransactionBuilder`, `MultiSigWorkflow`, helpers), `@fastxyz/sdk/networks` (`mainnet`, `testnet`), `@fastxyz/sdk/core` (standalone functions over the same REST API), `@fastxyz/sdk/wallet` (Fast app wallet connection and key handover), `@fastxyz/sdk/multisig`. There is no `@fastxyz/sdk/browser` entrypoint and no `FastWallet` class.
 - Built-in networks:
   - `mainnet`: network ID `fast:mainnet`, default token `fastUSD` (`0xc655a12330da6af361d281b197996d2bc135aaed3b66278e729c2222291e9130`, 6 decimals)
   - `testnet`: network ID `fast:testnet`, default token `testUSDC` (`0xd73a0679a2be46981e2a8aedecd951c8b6690e7d5f8502b34ed3ff4cc2163b46`, 6 decimals)
@@ -30,7 +30,7 @@ Checked against `@fastxyz/sdk` 2.4.0, `@fastxyz/allset-sdk` 1.3.0, `@fastxyz/x40
 ### AllSet SDK
 
 - Package: `@fastxyz/allset-sdk` (Node.js 20+)
-- One root entrypoint of pure functions. There is no `AllSetProvider`, no embedded route config, and no subpath besides `@fastxyz/allset-sdk/schemas/allset-intent-v1.json`.
+- One root entrypoint of standalone functions; the `execute*` and `smartDeposit` functions submit real, irreversible transactions. There is no `AllSetProvider`, no embedded route config, and no subpath besides `@fastxyz/allset-sdk/schemas/allset-intent-v1.json`.
 - Directions supported in one call:
   - EVM -> Fast deposit via `executeDeposit(...)` (it sends an ERC-20 `approve` before every deposit, so that's two EVM transactions), or `smartDeposit(...)` with EIP-7702, where gas is paid in USDC
   - Fast -> EVM withdraw via `executeWithdraw(...)`

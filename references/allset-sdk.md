@@ -14,7 +14,7 @@ Requires Node.js 20+. `@fastxyz/sdk` provides the `Signer` and `FastProvider` th
 
 ## What The Package Is
 
-- One root entrypoint, `@fastxyz/allset-sdk`, of pure functions. There is no `AllSetProvider` and no `/node`, `/browser` or `/core` subpath.
+- One root entrypoint, `@fastxyz/allset-sdk`, of standalone functions: the `execute*` and `smartDeposit` functions submit real transactions, while the builders and encoders only compute. There is no `AllSetProvider` and no `/node`, `/browser` or `/core` subpath.
 - No embedded route config: every call takes the bridge contract, Fast bridge address, relayer and cross-sign URLs, and token addresses explicitly.
 
 ## Supported Directions

@@ -16,7 +16,7 @@ Requires Node.js 20+.
 
 - `@fastxyz/sdk`: `Signer`, `FastProvider`, `TransactionBuilder`, `MultiSigWorkflow`, `MultiSigSigner`, errors, and helpers (`toHex`, `fromHex`, `toFastAddress`, `fromFastAddress`, `encode`, `hash`, `hashHex`, `getTokenId`, `verify`, `verifyTypedData`)
 - `@fastxyz/sdk/networks`: the `mainnet` and `testnet` constants (URL, network ID, explorer URL, default token)
-- `@fastxyz/sdk/core`: pure functions over the same REST API
+- `@fastxyz/sdk/core`: standalone functions over the same REST API
 - `@fastxyz/sdk/wallet`: connecting to the Fast app wallet and key handover
 - `@fastxyz/sdk/multisig`: the multisig workflow on its own
 

@@ -67,7 +67,7 @@ This skill ships its own Markdown docs inside the installed skill directory.
 ## Package Map
 
 - `@fastxyz/sdk`: `Signer`, `FastProvider`, `TransactionBuilder` and `MultiSigWorkflow`, plus address, hex and BCS helpers. Network constants come from `@fastxyz/sdk/networks`. There is no `FastWallet` class.
-- `@fastxyz/allset-sdk`: Fast <-> EVM bridging as pure functions (`executeDeposit`, `smartDeposit`, `executeWithdraw`, `executeIntent`). It ships no route config: the caller passes contract addresses and URLs.
+- `@fastxyz/allset-sdk`: Fast <-> EVM bridging as standalone functions (`executeDeposit`, `smartDeposit`, `executeWithdraw`, `executeIntent`) that submit real transactions. It ships no route config: the caller passes contract addresses and URLs.
 - `@fastxyz/cli` (`fast`): the terminal wallet. It also prints the supported hosted funding links (`fast fund card`, `fast fund usdc`, `fast fund crypto --supplier coinbase|swapper`).
 - `@fastxyz/x402-client`: pay 402-protected APIs (`x402Pay`).
 - `@fastxyz/x402-server`: return 402 requirements and protect routes (`paymentMiddleware`, `paywall`).

@@ -15,22 +15,36 @@ This only works if both legs have a deployed route (mainnet: `ethereum`, `arbitr
 
 ## Waiting Between Legs
 
-`executeDeposit(...)` returns once the EVM deposit transaction is submitted; the Fast-side credit comes later. Poll the Fast account before starting the withdrawal:
+`executeDeposit(...)` returns once the EVM deposit transaction is submitted; the Fast-side credit comes later. A single balance read doesn't prove this deposit arrived (the account may already have held fastUSD), so read the balance before the deposit and poll until it has grown by the deposited amount, with a timeout:
 
 ```ts
-import { FastProvider, fromHex } from '@fastxyz/sdk';
+import { FastProvider, fromHex, toHex } from '@fastxyz/sdk';
 import { mainnet } from '@fastxyz/sdk/networks';
 
 const provider = new FastProvider(mainnet);
-const fastUsd = fromHex(mainnet.defaultToken!.tokenId);
+const fastUsd = mainnet.defaultToken!.tokenId.toLowerCase();
+const intermediate = 'fast1intermediate...';
 
-const account = await provider.getAccountInfo({
-  address: 'fast1intermediate...',
-  tokenBalancesFilter: [fastUsd],
-});
+const fastUsdBalance = async (): Promise<bigint> => {
+  const account = await provider.getAccountInfo({ address: intermediate, tokenBalancesFilter: [fromHex(fastUsd)] });
+  const entry = account.tokenBalance.find(([tokenId]) => toHex(tokenId).toLowerCase() === fastUsd);
+  return entry ? entry[1] : 0n;
+};
 
-console.log(account.tokenBalance);
+// Read before submitting the deposit leg.
+const before = await fastUsdBalance();
+const deposited = 1_000_000n; // the deposit amount in base units
+
+// ... submit the deposit with executeDeposit(...) here ...
+
+const deadline = Date.now() + 30 * 60_000;
+while ((await fastUsdBalance()) < before + deposited) {
+  if (Date.now() > deadline) throw new Error('Deposit not credited on Fast in 30 minutes; not starting the withdrawal.');
+  await new Promise((resolve) => setTimeout(resolve, 10_000));
+}
 ```
+
+This assumes nothing else spends from the intermediate account while you wait.
 
 ## Checks
 
