@@ -39,6 +39,9 @@ app.use(
     { url: 'http://localhost:4020' },
   ),
 );
+app.get('/api/premium', (_req, res) => {
+  res.json({ content: 'paid content' });
+});
 app.listen(3000);
 ```
 
