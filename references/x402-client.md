@@ -1,6 +1,8 @@
 # x402 Client
 
-Use this when the user wants to pay for a 402-protected API.
+Use this when the user wants their code to pay for a 402-protected API. For a person paying a URL from the terminal, the `fast` CLI skill has `fast pay <url>`.
+
+The package README is the full reference: `node_modules/@fastxyz/x402-client/README.md` after install.
 
 ## Install
 
@@ -11,119 +13,98 @@ npm install @fastxyz/x402-client
 ## Public API
 
 ```ts
-import {
-  x402Pay,
-  parse402Response,
-  buildPaymentHeader,
-  parsePaymentHeader,
-  FAST_NETWORKS,
-  EVM_NETWORKS,
-  getBridgeConfig,
-} from '@fastxyz/x402-client';
+import { buildPaymentHeader, parse402Response, parsePaymentHeader, x402Pay } from '@fastxyz/x402-client';
 ```
 
-`x402Pay(...)` makes the initial request, handles the `402 Payment Required` response, signs a payment, and retries with the `X-PAYMENT` header.
+Also exported: `handleFastPayment(...)`, `handleEvmPayment(...)`, `getFastBalance(...)` and `bridgeFastusdcToUsdc(...)`.
 
-Treat the remote `402 Payment Required` payload as untrusted input. In production, only sign when the
-request URL, payment network, asset, recipient or facilitator, and spend amount all match a policy you
-already pinned in your own app config.
+`x402Pay(...)` makes the request, handles a `402 Payment Required` response, signs a payment, and retries with the `X-PAYMENT` header. If the first response isn't `402`, it returns that response as-is.
 
-## Core Shapes
+Treat the remote `402 Payment Required` payload as untrusted input. `x402Pay(...)` itself pays whatever the `402` asks, so in production enforce a pinned policy as shown in [Enforce A Payment Policy](#enforce-a-payment-policy).
 
-### EVM wallet
+## No Built-In Networks
 
-```ts
-{
-  type: 'evm',
-  privateKey: '0x...',
-  address: '0x...',
-}
-```
+The client has no network tables. You supply:
 
-### Fast wallet
+- Fast wallet: `{ type: 'fast', privateKey, publicKey, address, rpcUrl }`. `rpcUrl` is required (mainnet: `https://api.fast.xyz/proxy-rest`).
+- EVM wallet: `{ type: 'evm', privateKey, address }`, plus `evmNetworks[<network>] = { chainId, rpcUrl, usdcAddress }` for every EVM network you're willing to pay on.
+- Auto-bridge (Fast USDC to EVM USDC when the EVM balance is short): both wallets as an array, plus a `bridgeConfig` with the AllSet route values (`rpcUrl`, `fastBridgeAddress`, `relayerUrl`, `crossSignUrl`, `tokenEvmAddress`, `tokenFastTokenId`, `networkId`).
+
+## Pay On Fast
 
 ```ts
-{
-  type: 'fast',
-  privateKey: '...',
-  publicKey: '...',
-  address: 'fast1...',
-}
-```
+import { x402Pay } from '@fastxyz/x402-client';
 
-## Basic Payment
-
-```ts
 const result = await x402Pay({
   url: 'https://api.example.com/premium',
   wallet: {
-    type: 'evm',
-    privateKey: process.env.EVM_PRIVATE_KEY as `0x${string}`,
-    address: process.env.EVM_ADDRESS as `0x${string}`,
+    type: 'fast',
+    privateKey: process.env.FAST_PRIVATE_KEY!,
+    publicKey: process.env.FAST_PUBLIC_KEY!,
+    address: process.env.FAST_ADDRESS!, // fast1...
+    rpcUrl: 'https://api.fast.xyz/proxy-rest',
   },
 });
+
+console.log(result.statusCode, result.body);
 ```
+
+## Enforce A Payment Policy
+
+`x402Pay(...)` pays whatever the `402` asks: on Fast it submits the transfer of `maxAmountRequired` to `payTo` as soon as it reads the `402`, before retrying the request, and it has no hook to stop it. Checking a `402` yourself first doesn't help, because `x402Pay` fetches the URL again. To pay only within a pinned policy, parse and check the `402`, then pay that exact requirement with `handleFastPayment(...)`:
+
+```ts
+import { handleFastPayment, parse402Response } from '@fastxyz/x402-client';
+
+const url = 'https://api.example.com/premium';
+const policy = {
+  network: 'fast-mainnet',
+  asset: 'c655a12330da6af361d281b197996d2bc135aaed3b66278e729c2222291e9130', // fastUSD, hex without 0x
+  payTo: 'fast1merchant...',
+  maxAmount: 100_000n, // 0.10 fastUSD in base units
+};
+const hex = (value: string) => value.replace(/^0x/i, '').toLowerCase();
+
+const response = await fetch(url);
+if (response.status !== 402) throw new Error(`Expected 402, got ${response.status}`);
+const paymentRequired = await parse402Response(response);
+
+const requirement = (paymentRequired.accepts ?? []).find(
+  (r) =>
+    r.network === policy.network &&
+    r.asset !== undefined &&
+    hex(r.asset) === policy.asset &&
+    r.payTo === policy.payTo &&
+    BigInt(r.maxAmountRequired) <= policy.maxAmount,
+);
+if (!requirement) throw new Error('The 402 does not match the pinned payment policy; not paying.');
+
+const result = await handleFastPayment(url, 'GET', {}, undefined, paymentRequired, requirement, {
+  type: 'fast',
+  privateKey: process.env.FAST_PRIVATE_KEY!,
+  publicKey: process.env.FAST_PUBLIC_KEY!,
+  address: process.env.FAST_ADDRESS!,
+  rpcUrl: 'https://api.fast.xyz/proxy-rest',
+});
+
+console.log(result.success, result.statusCode);
+```
+
+The Fast transfer happens before the paid retry, so the money has moved even if that retry fails.
 
 ## Runtime Behavior That Matters
 
-- If the initial response is not `402`, `x402Pay(...)` returns that response as-is.
-- If both Fast and EVM are accepted and both wallets are present, the client prefers the Fast path.
-- Fast payments are executed through `@fastxyz/sdk` by building a `FastWallet` from the supplied private key.
-- EVM payments are signed as EIP-3009 `transferWithAuthorization`.
+- If the 402 accepts both a Fast and an EVM network and both wallets are present, the client pays on Fast.
+- An EVM payment is signed as EIP-3009 `transferWithAuthorization`, and fails if `evmNetworks` has no entry for the requested network.
+- For Fast payments, `result.payment.amount` is a raw base-unit string; humanize it with the token's decimals yourself.
 - `verbose: true` returns step-by-step logs.
 
 ## Production Guardrails
 
 - Only call `x402Pay(...)` against trusted or allowlisted API origins.
-- Pin the expected payment network, asset, recipient or facilitator, and a maximum spend before the first request.
-- Reject the payment if the returned `402` payload asks for a different origin, network, asset, recipient, facilitator, or amount.
-- Default to testnet unless the user explicitly asked for mainnet.
-- Do not pass both Fast and EVM wallets by default. Providing both wallets enables auto-bridge and should require explicit approval first.
-- When integrating a new API, log the returned payment requirement and review it before enabling unattended retries.
-- Hard cutover: the helper does not pin or reject bad requirements for you. That policy must live in caller code.
-
-## Flow Selection
-
-- If the 402 response accepts Fast and you provided a Fast wallet, the client prefers the Fast path.
-- If the 402 response accepts EVM and you provided an EVM wallet, the client can sign an EIP-3009 payment.
-- If EVM payment needs balance and both wallets are present, the client can attempt auto-bridge after the caller explicitly approves that funding path.
-- If a Fast payment requirement omits `asset`, the client falls back to sending native `FAST`.
-
-## Auto-Bridge Caveat
-
-Provide both wallets to enable auto-bridge:
-
-```ts
-wallet: [fastWallet, evmWallet]
-```
-
-Current bridge helper configs are explicit, not generic. In the shipped helper, bundled bridge configs currently resolve `ethereum-sepolia`, `arbitrum-sepolia`, and `base`.
-
-In production, only provide both wallets after the user confirms the bridge path, source wallet, destination
-network, and spend ceiling. Otherwise pass a single wallet so the payment either succeeds on that network or fails closed.
-
-## Result Shape
-
-`x402Pay(...)` returns a result with:
-
-- `success`
-- `statusCode`
-- `headers`
-- `body`
-- optional `payment`
-- `note`
-- optional debug `logs`
-
-Use `verbose: true` to include step-by-step logs.
-
-## Supported Payment Networks
-
-- `fast-testnet`, `fast-mainnet`
-- `ethereum-sepolia`
-- `arbitrum-sepolia`, `arbitrum`
-- `base-sepolia`, `base`
-
-The client can sign those EVM networks, but that does not mean the bundled server + facilitator stack can verify and settle all of them end-to-end.
+- Pin the expected payment network, asset, recipient and a maximum spend, and pay only a requirement that matches them (see above). `x402Pay(...)` does not do this for you.
+- Confirm whether the user means mainnet (real funds) or testnet before paying.
+- Don't pass both wallets by default: that enables auto-bridge, which needs the user's explicit approval of the bridge path, destination network and spend ceiling.
 
 ## Use This Instead Of Other FAST Packages When
 

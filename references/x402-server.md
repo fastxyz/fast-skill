@@ -2,29 +2,32 @@
 
 Use this when the user wants to add payment requirements to API routes.
 
+The package README is the full reference: `node_modules/@fastxyz/x402-server/README.md` after install.
+
 ## Install
 
 ```bash
-npm install @fastxyz/x402-server
+npm install @fastxyz/x402-server express
 ```
+
+`express` is a peer dependency.
 
 ## Public API
 
 ```ts
 import {
+  createPaymentRequired,
+  createPaymentRequirement,
+  parsePrice,
   paymentMiddleware,
   paywall,
-  createPaymentRequirement,
-  createPaymentRequired,
-  parsePaymentHeader,
-  verifyPayment,
   settlePayment,
   verifyAndSettle,
-  NETWORK_CONFIGS,
-  parsePrice,
-  getNetworkConfig,
+  verifyPayment,
 } from '@fastxyz/x402-server';
 ```
+
+Also exported: `parsePaymentHeader`, `encodePayload`, `decodePayload`, `encodePaymentResponse`.
 
 ## Standard Express Setup
 
@@ -34,68 +37,52 @@ import { paymentMiddleware } from '@fastxyz/x402-server';
 
 const app = express();
 
-app.use(paymentMiddleware(
-  {
-    evm: '0x1234...',
-    fast: 'fast1abc...',
-  },
-  {
-    'GET /api/premium/*': {
-      price: '$0.10',
-      network: 'base-sepolia',
+app.use(
+  paymentMiddleware(
+    { fast: 'fast1merchant...' },
+    {
+      '/premium': {
+        price: '$0.10',
+        network: 'fast-mainnet',
+        networkConfig: {
+          asset: '0xc655a12330da6af361d281b197996d2bc135aaed3b66278e729c2222291e9130', // fastUSD
+          decimals: 6,
+        },
+      },
     },
-  },
-  { url: 'http://localhost:4020' },
-));
+    { url: process.env.FACILITATOR_URL! },
+  ),
+);
+
+app.get('/premium', (_req, res) => {
+  res.json({ content: 'paid content' });
+});
+
+app.listen(3000);
 ```
 
 ## What The Package Does
 
-- build 402 response payloads
-- match configured routes
-- parse `X-PAYMENT`
-- call the facilitator to verify payments
-- call the facilitator to settle EVM payments
-- set `X-PAYMENT-RESPONSE` after successful verify / settlement
-- offer `paywall(...)` as a one-config wrapper around `paymentMiddleware(...)`
+- builds 402 response payloads for matched routes
+- parses `X-PAYMENT`
+- calls the facilitator to verify every payment, and to settle EVM payments. A Fast payment is already on-chain when the client retries (the client submits the transfer), so it is only verified
+- sets `X-PAYMENT-RESPONSE` after a successful payment
+- offers `paywall(...)` as a single-route version of `paymentMiddleware(...)`
 
-## Route Config Notes
+## Route Config
 
-Each route config needs:
+- `price`: human-readable, such as `'$0.10'` or `'0.1 USDC'`
+- `network`: the x402 network name, such as `'fast-mainnet'`, `'fast-testnet'` or `'base'`
+- `networkConfig: { asset, decimals, extra? }`: required; there are no network defaults
+- optional `config: { description?, mimeType?, asset? }`
 
-- `price`
-- `network`
+## Replay
 
-Optional config can add:
-
-- `description`
-- `mimeType`
-- `asset`
-
-Price strings can be human-readable like `'$0.10'` or raw like `'100000'`.
-
-`config.asset` overrides the asset address or token id, but decimals and any EIP-3009 metadata still come from the package network config or its fallback.
+Neither this package nor the facilitator remembers which Fast payments were already used: the same `X-PAYMENT` verifies again on a later request. Record each Fast payment's transaction hash and refuse one you have already served.
 
 ## Facilitator Dependency
 
-This package is not the settlement engine. For working payment verification and EVM settlement, run `@fastxyz/x402-facilitator` and point the middleware at its base URL.
-
-## Built-In Network Caveats
-
-- The only hard-rejected alias is `fast`. Most other network strings are accepted by the builder.
-- Built-in `NETWORK_CONFIGS` currently resolve concrete asset metadata for:
-  - `fast-testnet`
-  - `fast-mainnet`
-  - `arbitrum-sepolia`
-  - `arbitrum`
-  - `ethereum-sepolia`
-  - `ethereum`
-  - `base`
-  - `base-sepolia`
-- Any other network name falls back to generic asset `0x0000000000000000000000000000000000000000` with 6 decimals.
-- Route acceptance still does not guarantee that the facilitator can verify or settle that network.
-
-Use explicit route assets and capability checks when you need anything outside the current built-in config.
+This package is not the settlement engine. Run `@fastxyz/x402-facilitator`, configure it for every network your routes advertise, and point the middleware at its URL. Route acceptance here does not mean the facilitator can verify or settle that network.
 
 ## Good Fit
 

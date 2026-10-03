@@ -3,8 +3,10 @@
 This historical flow path is retained for existing links. The hosted routes
 below replace the retired ramp endpoint.
 
-Use this flow when the user needs more native **fastUSD** on Fast **mainnet** and
-may already have a known `fast1...` address.
+Use this flow when code (an app, a service, or a wallet it manages with the SDK)
+needs to send someone to add native **fastUSD** to a known `fast1...` address on
+Fast **mainnet**. A person topping up their own `fast` CLI wallet should use the
+`fast` CLI skill instead; its `fast fund …` commands print these same links.
 
 ## Trigger
 
@@ -41,8 +43,9 @@ wallet has been credited; confirm its Fast balance before continuing.
 
 ## CLI Commands
 
-With a CLI release that includes these routes, use `fast fund --help` to check
-availability. The CLI prints the URL; it does not complete a purchase.
+`@fastxyz/cli` 1.5.0 and later print these links (the `fast` CLI skill covers
+the rest of a person's wallet). The CLI prints the URL; it does not complete a
+purchase.
 
 ```sh
 fast fund --network mainnet

@@ -1,6 +1,8 @@
 # Fast SDK
 
-Use this when the request is purely about Fast network wallets, balances, transfers, signatures, token metadata, or low-level claim submission.
+Use this when the request is about Fast network keys, balances, transfers, signatures, or token metadata in code. For a person managing their own wallet from the terminal, use the `fast` CLI skill instead.
+
+The package README is the full reference: `node_modules/@fastxyz/sdk/README.md` after install.
 
 ## Install
 
@@ -8,129 +10,77 @@ Use this when the request is purely about Fast network wallets, balances, transf
 npm install @fastxyz/sdk
 ```
 
+Requires Node.js 20+.
+
 ## Entrypoints
 
-```ts
-import { FastProvider, FastWallet, FastError } from '@fastxyz/sdk';
-import { FastProvider as BrowserFastProvider } from '@fastxyz/sdk/browser';
-import { encodeFastAddress, decodeFastAddress } from '@fastxyz/sdk/core';
-```
+- `@fastxyz/sdk`: `Signer`, `FastProvider`, `TransactionBuilder`, `MultiSigWorkflow`, `MultiSigSigner`, errors, and helpers (`toHex`, `fromHex`, `toFastAddress`, `fromFastAddress`, `encode`, `hash`, `hashHex`, `getTokenId`, `verify`, `verifyTypedData`)
+- `@fastxyz/sdk/networks`: the `mainnet` and `testnet` constants (URL, network ID, explorer URL, default token)
+- `@fastxyz/sdk/core`: standalone functions over the same REST API
+- `@fastxyz/sdk/wallet`: connecting to the Fast app wallet and key handover
+- `@fastxyz/sdk/multisig`: the multisig workflow on its own
 
-- `@fastxyz/sdk`: Node runtime entrypoint with `FastProvider`, `FastWallet`, config helpers, address helpers, and BCS / certificate utilities
-- `@fastxyz/sdk/browser`: browser-safe `FastProvider` plus shared helpers, with no keyfile support
-- `@fastxyz/sdk/core`: pure helpers only
+Removed APIs: `FastWallet` (`fromKeyfile`, `fromPrivateKey`, `generate`), `fast()` / `setup()` and the `@fastxyz/sdk/browser` entrypoint. Don't write new code against them.
 
-Hard cutover: do not write against an old `fast()` / `setup()` wrapper. The shipped package is provider/wallet based.
-
-## Standard Node Flow
+## Transfer fastUSD on Mainnet
 
 ```ts
-import { FastProvider, FastWallet } from '@fastxyz/sdk';
+import { FastProvider, Signer, TransactionBuilder } from '@fastxyz/sdk';
+import { mainnet } from '@fastxyz/sdk/networks';
 
-const provider = new FastProvider({ network: 'testnet' });
-const wallet = await FastWallet.fromKeyfile({ key: 'default' }, provider);
+const signer = new Signer(process.env.FAST_PRIVATE_KEY!); // 32-byte Ed25519 seed, hex
+const provider = new FastProvider(mainnet);
 
-const balance = await wallet.balance('FAST');
-const sent = await wallet.send({
-  to: 'fast1recipient...',
-  amount: '1.0',
-  token: 'FAST',
-});
+const account = await provider.getAccountInfo({ address: await signer.getPublicKey() });
 
-console.log(wallet.address);
-console.log(balance.amount);
-console.log(sent.txHash, sent.explorerUrl);
-```
+const envelope = await new TransactionBuilder({
+  networkId: 'fast:mainnet',
+  signer,
+  nonce: account.nextNonce,
+})
+  .addTokenTransfer({
+    tokenId: mainnet.defaultToken!.tokenId, // fastUSD
+    recipient: 'fast1recipient...',
+    amount: 1_500_000n, // 1.5 fastUSD in base units (6 decimals)
+    userData: null,
+  })
+  .sign();
 
-## Browser-Safe Flow
-
-```ts
-import { FastProvider, getCertificateHash } from '@fastxyz/sdk/browser';
-
-const provider = new FastProvider({ network: 'testnet' });
-const balance = await provider.getBalance('fast1recipient...', 'FAST');
-const certificate = await provider.getCertificateByNonce('fast1recipient...', 1);
-
-console.log(balance.amount);
-if (certificate) {
-  console.log(getCertificateHash(certificate));
-}
+const result = await provider.submitTransaction(envelope);
+console.log(result);
 ```
 
 ## APIs That Matter
 
-Provider:
+`FastProvider` (REST client):
 
-- `new FastProvider({ network?, networkId?, rpcUrl?, explorerUrl?, networks?, tokens? })`
-- `getBalance(address, token?)`
-- `getTokens(address)`
-- `getTokenInfo(token)`
-- `getAccountInfo(address)`
-- `getTransactionCertificates(address, fromNonce, limit)`
-- `getCertificateByNonce(address, nonce)`
+- `getAccountInfo({ address, tokenBalancesFilter?, stateKeyFilter?, certificateByNonce? })`: native balance, `tokenBalance` pairs, `nextNonce`
 - `submitTransaction(envelope)`
-- `faucetDrip({ recipient, amount, token? })`
-- `getExplorerUrl(txHash?)`
-- `resolveKnownToken(token)`, `getKnownTokens()`, `getKnownNetworks()`, `getNetworkId()`
+- `getTokenInfo({ tokenIds })`
+- `getTransactionCertificates({ address, fromNonce, limit })`
+- `getPendingMultisigTransactions({ address })`
 
-Wallet:
+`Signer`: `new Signer(privateKey)`, `getPublicKey()`, `getFastAddress()`, `signMessage(bytes)`, `signTypedData(bcsType, data)`.
 
-- `FastWallet.fromKeyfile(pathOrOpts, provider)`
-- `FastWallet.fromPrivateKey(privateKey, provider)`
-- `FastWallet.generate(provider)`
-- `saveToKeyfile(path)`
-- `balance(token?)`
-- `tokens()`
-- `send({ to, amount, token? })`
-- `sign({ message })`
-- `verify({ message, signature, address })`
-- `submit({ claim })`
-- `exportKeys()`
+`TransactionBuilder`: `new TransactionBuilder({ networkId, signer, nonce })`, then `addTokenTransfer`, `addTokenCreation`, `addTokenManagement`, `addMint`, `addBurn`, state and claim operations, and `sign()`. Several operations in one builder are batched.
 
-Shared helpers:
+## Data Rules
 
-- `encodeFastAddress`, `fastAddressToBytes`, `decodeFastAddress`
-- `getNetworkInfo`, `getAllNetworks`, `resolveKnownFastToken`, `getAllTokens`, `getDefaultRpcUrl`, `getExplorerUrl`
-- `hashTransaction`, `serializeVersionedTransaction`, `decodeTransactionEnvelope`, `getTransferDetails`
-- `FAST_TOKEN_ID`, `FAST_DECIMALS`, `FAST_NETWORK_IDS`
-
-## Config And Data Rules
-
-- Default network is `testnet`. Only use `mainnet` if the user explicitly asks.
-- Node config precedence:
-  1. constructor overrides
-  2. `~/.fast/networks.json` and `~/.fast/tokens.json`
-  3. bundled defaults
-  4. hardcoded fallbacks
-- Browser config omits the `~/.fast/*` layer and uses constructor overrides plus bundled defaults.
-- Built-in token symbols currently resolve `FAST` and `testUSDC` on `testnet`, and `FAST` plus `USDC` on `mainnet`.
-- `wallet.send(...)` expects human-readable amount strings such as `'1.5'`.
-- Fast addresses must be bech32m with `fast` prefix.
-- The native token symbol is `FAST`.
-- `FastWallet.fromKeyfile({ key: 'merchant' }, provider)` resolves `~/.fast/keys/merchant.json` and auto-creates the key unless `createIfMissing: false`.
+- Pass the network explicitly: `new FastProvider(mainnet)` or `new FastProvider(testnet)`. Mainnet moves real funds.
+- Token IDs, not symbols: mainnet `fastUSD` is `mainnet.defaultToken.tokenId`, testnet `testUSDC` is `testnet.defaultToken.tokenId`.
+- Amounts are `bigint` base units.
+- Fast addresses are bech32m with the `fast` prefix (`toFastAddress`, `fromFastAddress`).
+- The SDK reads no key files. The `fast` CLI keeps its accounts in `~/.fast/fast.db`; don't read or modify that database from code.
+- Explorer links: `${mainnet.explorerUrl}/txs/<txHash>`.
 
 ## Safety Rules
 
-- Never overwrite or delete `~/.fast/keys/`.
-- Only wallets created in memory via `generate()` or `fromPrivateKey()` can be saved with `saveToKeyfile(...)`.
-- Fast sends are irreversible.
-- Confirm the recipient address before calling `send()`.
-- Use `provider.getExplorerUrl(txHash)` instead of hardcoded explorer hosts.
-
-## Error Handling
-
-The package throws `FastError`. Common codes:
-
-- `INSUFFICIENT_BALANCE`: fund the wallet and retry
-- `INVALID_ADDRESS`: fix the `fast1...` address
-- `TOKEN_NOT_FOUND`: use a held symbol or a valid token id
-- `KEYFILE_NOT_FOUND`: `fromKeyfile(..., createIfMissing: false)` could not find the file
-- `TX_FAILED`: wait, inspect, retry once if appropriate
-- `UNSUPPORTED_OPERATION`: unsupported keyfile/save path or malformed low-level call
-- `INVALID_PARAMS`: fix the input shape
+- Fast sends are irreversible. Confirm the recipient, amount and network before submitting.
+- Never print or log private keys.
+- `UnexpectedNonceError` means another transaction used the nonce: re-read `nextNonce` before rebuilding.
 
 ## Use This Instead Of Other FAST Packages When
 
-- the task is a direct Fast payment or balance check
+- the task is a direct Fast payment or balance check in code
 - the user wants Fast signatures or token metadata
 - the user does not need EVM bridging or 402 HTTP payment behavior
