@@ -1,44 +1,41 @@
 # EVM To Fast Deposit
 
-This is an AllSet deposit flow using `@fastxyz/allset-sdk`.
+This is an AllSet deposit flow using `@fastxyz/allset-sdk`. A person moving USDC from their own EVM address into their own Fast account can use the `fast` CLI skill (`fast fund usdc crypto`) instead.
 
 ## Preconditions
 
-- supported source chain in the current SDK config
-- supported token mapping in the current SDK config
-- EVM sender address
-- Fast receiver address
-- EVM private key and RPC URL
+- a source chain with a deployed route (mainnet: `ethereum`, `arbitrum`, `base`, `polygon`, `arc`; testnet: `arbitrum-sepolia`, `ethereum-sepolia`)
+- trusted route values for that chain: bridge contract and token address (`fast info bridge-chains --json`, `fast info bridge-tokens --json`)
+- the EVM sender's private key and an RPC URL for the chain
+- the Fast receiver address
 
 ## Example
 
 ```ts
-import { AllSetProvider, createEvmExecutor, createEvmWallet } from '@fastxyz/allset-sdk/node';
+import { createEvmExecutor, createEvmWallet, executeDeposit } from '@fastxyz/allset-sdk';
 
-const account = createEvmWallet(process.env.EVM_PRIVATE_KEY!);
-const evmClients = createEvmExecutor(
-  account,
-  process.env.ARBITRUM_SEPOLIA_RPC_URL!,
-  421614,
-);
+const account = createEvmWallet(process.env.EVM_PRIVATE_KEY as `0x${string}`);
+const evmClients = createEvmExecutor(account, process.env.BASE_RPC_URL!, 8453);
 
-const allset = new AllSetProvider({ network: 'testnet' });
-
-const result = await allset.sendToFast({
-  chain: 'arbitrum-sepolia',
-  token: 'USDC',
-  amount: '1000000',
-  from: account.address,
-  to: 'fast1YourFastAddress',
+const result = await executeDeposit({
+  chainId: 8453,
+  bridgeContract: process.env.ALLSET_BRIDGE_CONTRACT as `0x${string}`,
+  tokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
+  amount: '1000000', // 1 USDC in base units
+  receiverAddress: 'fast1yourfastaddress...',
   evmClients,
 });
+
+console.log(result.txHash, result.estimatedTime);
 ```
+
+On mainnet the deposited USDC is credited on Fast as `fastUSD`.
 
 ## Checks
 
-- `to` must be `fast1...`
-- `amount` is raw base units
-- bundled AllSet chain keys are `ethereum-sepolia`, `arbitrum-sepolia`, and `base`
-- use `@fastxyz/allset-sdk/node` for explicit runtime imports; the root package currently re-exports the same runtime APIs too
-- if approval is needed, the executor will handle it before deposit
-- unsupported token mappings should be called out before writing code
+- `receiverAddress` must be `fast1...`
+- `amount` is a base-unit string
+- the sender needs the chain's native gas token, or use `smartDeposit(...)` (EIP-7702) to pay gas in USDC
+- `executeDeposit` submits an ERC-20 approval first when the allowance is too low
+- the deposit is not on Fast until the bridge settles: check the Fast balance before treating it as received
+- unsupported chains or tokens should be called out before writing code

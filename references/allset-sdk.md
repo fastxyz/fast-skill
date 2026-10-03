@@ -1,140 +1,94 @@
 # AllSet SDK
 
-Use this when the user wants to move value between Fast and a supported EVM route.
+Use this when the user wants to move value between Fast and an EVM chain in code. For a person bridging their own funds from the terminal, use the `fast` CLI skill (`fast fund usdc crypto`, `fast send --to-chain`) instead.
+
+The package README is the full reference: `node_modules/@fastxyz/allset-sdk/README.md` after install.
 
 ## Install
 
 ```bash
-npm install @fastxyz/allset-sdk
+npm install @fastxyz/allset-sdk @fastxyz/sdk
 ```
 
-Add `@fastxyz/sdk` too when the workflow needs a Fast wallet for Fast -> EVM withdrawals or intent execution.
+Requires Node.js 20+. `@fastxyz/sdk` provides the `Signer` and `FastProvider` that withdrawals need.
 
-## Entrypoints
+## What The Package Is
 
-```ts
-import {
-  buildDepositTransaction,
-  buildTransferIntent,
-  buildExecuteIntent,
-  buildDepositBackIntent,
-  buildRevokeIntent,
-} from '@fastxyz/allset-sdk';
-
-import {
-  AllSetProvider,
-  createEvmExecutor,
-  createEvmWallet,
-} from '@fastxyz/allset-sdk/node';
-```
-
-- Root `@fastxyz/allset-sdk` currently re-exports both pure helpers and the node/runtime APIs
-- `@fastxyz/allset-sdk/node` is still the clearest explicit runtime import path
-- `@fastxyz/allset-sdk/browser` and `@fastxyz/allset-sdk/core` are the pure-helper surfaces
+- One root entrypoint, `@fastxyz/allset-sdk`, of pure functions. There is no `AllSetProvider` and no `/node`, `/browser` or `/core` subpath.
+- No embedded route config: every call takes the bridge contract, Fast bridge address, relayer and cross-sign URLs, and token addresses explicitly.
 
 ## Supported Directions
 
-- EVM -> Fast deposit
-- Fast -> EVM withdraw
-- Fast -> EVM intent execution
+- EVM -> Fast deposit: `executeDeposit(...)`, or `smartDeposit(...)` with EIP-7702 so gas is paid in USDC
+- Fast -> EVM withdraw: `executeWithdraw(...)`
+- Fast -> EVM intent execution: `executeIntent(...)` with `buildTransferIntent`, `buildExecuteIntent`, `buildDepositBackIntent`, `buildRevokeIntent`
 
 This SDK does not expose a single EVM -> EVM bridge call. Cross-chain EVM movement is composed from two legs through Fast.
 
-## Current Support Limits
+## Chains And Route Values
 
-- Bundled bridge config is testnet-only
-- Shipped chain keys are `ethereum-sepolia`, `arbitrum-sepolia`, and `base`
-- Bundled chain IDs are:
-  - `ethereum-sepolia` -> `11155111`
-  - `arbitrum-sepolia` -> `421614`
-  - `base` -> `8453`
-- Bundled mainnet config exists, but its `chains` map is empty
-- `createEvmExecutor(...)` only supports chain IDs `11155111`, `421614`, and `8453`
-- Bundled token mapping is `USDC`, with `fastUSDC` and `testUSDC` normalized to the Fast-side USDC route
-- Amounts are raw 6-decimal base-unit strings such as `'1000000'` for 1 USDC
-- Hard cutover: do not write new AllSet examples with legacy testnet keys like `arbitrum` or `ethereum`. The shipped SDK keys are `arbitrum-sepolia` and `ethereum-sepolia`.
+- `createEvmExecutor(account, rpcUrl, chainId)` accepts `1` (Ethereum), `137` (Polygon), `42161` (Arbitrum One), `8453` (Base), `5042` (Arc), `11155111` (Sepolia) and `421614` (Arbitrum Sepolia).
+- Deployed routes: mainnet `ethereum`, `arbitrum`, `base`, `polygon`, `arc` carry USDC, credited on Fast as `fastUSD`; testnet `arbitrum-sepolia` and `ethereum-sepolia` carry `testUSDC`.
+- Get route values from a trusted source, never by guessing:
+  - `fast info bridge-chains --json`: chain IDs and bridge contracts
+  - `fast info bridge-tokens --json`: token EVM addresses and Fast token IDs per chain
+  - `app/cli/src/config/networks.ts` in fastxyz/fast-sdk: the same plus the relayer URLs, cross-sign URL and Fast bridge addresses
 
 ## EVM To Fast Deposit
 
-Use the explicit runtime entrypoint for execution:
-
 ```ts
-import { AllSetProvider, createEvmExecutor, createEvmWallet } from '@fastxyz/allset-sdk/node';
+import { createEvmExecutor, createEvmWallet, executeDeposit } from '@fastxyz/allset-sdk';
 
-const account = createEvmWallet(process.env.EVM_PRIVATE_KEY!);
-const evmClients = createEvmExecutor(
-  account,
-  process.env.ARBITRUM_SEPOLIA_RPC_URL!,
-  421614,
-);
+const account = createEvmWallet(process.env.EVM_PRIVATE_KEY as `0x${string}`);
+const evmClients = createEvmExecutor(account, process.env.BASE_RPC_URL!, 8453);
 
-const allset = new AllSetProvider({ network: 'testnet' });
-
-const result = await allset.sendToFast({
-  chain: 'arbitrum-sepolia',
-  token: 'USDC',
-  amount: '1000000',
-  from: account.address,
-  to: 'fast1yourfastaddress',
+const result = await executeDeposit({
+  chainId: 8453,
+  bridgeContract: process.env.ALLSET_BRIDGE_CONTRACT as `0x${string}`, // from `fast info bridge-chains --json`
+  tokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
+  amount: '1000000', // 1 USDC in base units
+  receiverAddress: 'fast1yourfastaddress...',
   evmClients,
 });
+
+console.log(result.txHash);
 ```
 
 ## Fast To EVM Withdraw
 
-Use a Fast wallet plus the explicit runtime entrypoint:
-
 ```ts
-import { FastProvider, FastWallet } from '@fastxyz/sdk';
-import { AllSetProvider } from '@fastxyz/allset-sdk/node';
+import { FastProvider, Signer } from '@fastxyz/sdk';
+import { mainnet } from '@fastxyz/sdk/networks';
+import { executeWithdraw } from '@fastxyz/allset-sdk';
 
-const fastProvider = new FastProvider({ network: 'testnet' });
-const fastWallet = await FastWallet.fromKeyfile('~/.fast/keys/default.json', fastProvider);
-const allset = new AllSetProvider({ network: 'testnet' });
+const signer = new Signer(process.env.FAST_PRIVATE_KEY!);
+const provider = new FastProvider(mainnet);
 
-const result = await allset.sendToExternal({
-  chain: 'arbitrum-sepolia',
-  token: 'USDC',
+const result = await executeWithdraw({
+  fastBridgeAddress: process.env.ALLSET_FAST_BRIDGE_ADDRESS!, // fast1...
+  relayerUrl: process.env.ALLSET_RELAYER_URL!,
+  crossSignUrl: process.env.ALLSET_CROSS_SIGN_URL!,
+  tokenEvmAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
+  tokenFastTokenId: mainnet.defaultToken!.tokenId.replace(/^0x/, ''), // fastUSD, hex without 0x
   amount: '1000000',
-  from: fastWallet.address,
-  to: '0xYourEvmAddress',
-  fastWallet,
+  receiverEvmAddress: '0xYourEvmAddress',
+  networkId: 'fast:mainnet',
+  signer,
+  provider,
 });
-```
 
-## Intent Execution
-
-```ts
-import { FastProvider, FastWallet } from '@fastxyz/sdk';
-import { AllSetProvider } from '@fastxyz/allset-sdk/node';
-import { buildTransferIntent } from '@fastxyz/allset-sdk';
-
-const fastProvider = new FastProvider({ network: 'testnet' });
-const fastWallet = await FastWallet.fromKeyfile({ key: 'default' }, fastProvider);
-const allset = new AllSetProvider({ network: 'testnet' });
-
-const result = await allset.executeIntent({
-  chain: 'arbitrum-sepolia',
-  fastWallet,
-  token: 'USDC',
-  amount: '1000000',
-  intents: [
-    buildTransferIntent('0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d', '0xRecipient'),
-  ],
-});
+console.log(result.txHash);
 ```
 
 ## Failure Modes To Watch
 
-- `INVALID_PARAMS`: missing `evmClients` or `fastWallet`
-- `INVALID_ADDRESS`: deposit receiver is not a valid Fast bech32m address
-- `TOKEN_NOT_FOUND`: token mapping not shipped for that route
-- `UNSUPPORTED_OPERATION`: route is not Fast <-> EVM or the EVM chain is not in the current shipped config
-- `TX_FAILED`: approval, deposit, relayer leg, or other downstream bridge execution failed
-- user-supplied mainnet/custom deployments need caller-provided config instead of the bundled defaults
+- `FastError` codes: `INVALID_PARAMS`, `INVALID_ADDRESS`, `TOKEN_NOT_FOUND`, `UNSUPPORTED_OPERATION`, `INSUFFICIENT_BALANCE`, `TX_FAILED`, `TX_INDETERMINATE`, `POST_PAYMENT_INCOMPLETE`
+- `IndeterminateTransactionError`: the submit result couldn't be correlated; inspect `txHash` and `recoveryEnvelope`, don't retry blindly
+- `PostPaymentRecoveryError`: the Fast transfer already succeeded and a later stage failed; reconcile before continuing
+- `InsufficientBalanceError` from `smartDeposit`: `required` vs `balance`
 
 ## Use This Instead Of Other FAST Packages When
 
-- the user explicitly wants bridging
+- the user explicitly wants bridging in code
 - the workflow crosses Fast and an EVM chain
 - x402 auto-bridge behavior needs to be explained or debugged

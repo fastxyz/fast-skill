@@ -2,23 +2,20 @@
 
 Use this when the user wants to verify or settle x402 payments, or run the infrastructure behind a paid API.
 
+The package README is the full reference: `node_modules/@fastxyz/x402-facilitator/README.md` after install.
+
 ## Install
 
 ```bash
-npm install @fastxyz/x402-facilitator
+npm install @fastxyz/x402-facilitator express viem
 ```
+
+`express` is a peer dependency; `viem` provides the `Chain` objects for EVM networks.
 
 ## Public API
 
 ```ts
-import {
-  createFacilitatorServer,
-  createFacilitatorRoutes,
-  verify,
-  settle,
-  SUPPORTED_EVM_NETWORKS,
-  SUPPORTED_FAST_NETWORKS,
-} from '@fastxyz/x402-facilitator';
+import { createFacilitatorRoutes, createFacilitatorServer, settle, verify } from '@fastxyz/x402-facilitator';
 ```
 
 ## Run As A Service
@@ -26,57 +23,51 @@ import {
 ```ts
 import express from 'express';
 import { createFacilitatorServer } from '@fastxyz/x402-facilitator';
+import { base } from 'viem/chains';
 
 const app = express();
 app.use(express.json());
 
-app.use(createFacilitatorServer({
-  evmPrivateKey: process.env.FACILITATOR_KEY as `0x${string}`,
-}));
+app.use(
+  createFacilitatorServer({
+    evmPrivateKey: process.env.FACILITATOR_KEY as `0x${string}`,
+    evmChains: {
+      base: {
+        chain: base,
+        rpcUrl: process.env.BASE_RPC_URL!,
+        usdcAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      },
+    },
+    fastNetworks: {
+      'fast-mainnet': {
+        rpcUrl: 'https://api.fast.xyz/proxy-rest',
+        committeePublicKeys: process.env.FAST_COMMITTEE_PUBLIC_KEYS!.split(','),
+      },
+    },
+  }),
+);
+
+app.listen(4402);
 ```
 
 ## HTTP Endpoints
 
-- `GET /supported`: list supported networks
-- `POST /verify`: validate an incoming payment payload
-- `POST /settle`: settle an EVM authorization on-chain
-
-Fast payments do not need settlement because the payment is already on-chain.
-
-## Use As A Library
-
-- `verify(paymentPayload, paymentRequirement)`
-- `settle(paymentPayload, paymentRequirement, config)`
+- `GET /supported`: list the configured payment kinds
+- `POST /verify`: validate an incoming payment payload against a requirement
+- `POST /settle`: settle a verified payment
 
 ## Config Requirements
 
-- `evmPrivateKey`: required for EVM settlement, because the facilitator pays gas
-- `fastRpcUrl`: optional override for Fast verification
-- `committeePublicKeys`: optional override for trusted Fast committee keys
-- `chains`: declared in the public type and extends the built-in chain map
-
-## Supported Networks In Code
-
-EVM:
-
-- `arbitrum-sepolia`
-- `arbitrum`
-- `ethereum-sepolia`
-- `ethereum`
-- `base`
-- `base-sepolia`
-
-Fast:
-
-- `fast-testnet`, `fast-mainnet`
+- No built-in networks: configure every network in `evmChains` or `fastNetworks`.
+- `evmChains[<network>]`: `{ chain, rpcUrl?, usdcAddress, usdcName?, usdcVersion? }`, where `chain` is a viem `Chain`.
+- `fastNetworks[<network>]`: `{ rpcUrl, committeePublicKeys }`. The committee keys are the Ed25519 keys used to verify Fast transactions; get them from a trusted source, never from the payment payload.
+- `evmPrivateKey`: required to settle EVM authorizations, because the facilitator pays the gas.
 
 ## Operational Rules
 
 - Fund the facilitator wallet with native gas on every EVM network you settle on.
 - Re-verify a payment before settlement.
-- Treat Fast verification and EVM settlement as different concerns.
-- `GET /supported` is the source of truth for the current service surface.
-- The HTTP server accepts either decoded JSON payloads or base64-encoded `paymentPayload` bodies.
+- `GET /supported` is the source of truth for what a running facilitator accepts.
 
 ## Good Fit
 

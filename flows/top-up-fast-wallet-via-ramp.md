@@ -41,8 +41,9 @@ wallet has been credited; confirm its Fast balance before continuing.
 
 ## CLI Commands
 
-With a CLI release that includes these routes, use `fast fund --help` to check
-availability. The CLI prints the URL; it does not complete a purchase.
+`@fastxyz/cli` 1.5.0 and later print these links (the `fast` CLI skill covers
+the rest of a person's wallet). The CLI prints the URL; it does not complete a
+purchase.
 
 ```sh
 fast fund --network mainnet

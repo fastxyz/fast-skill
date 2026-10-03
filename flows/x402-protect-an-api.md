@@ -6,30 +6,40 @@ Use `@fastxyz/x402-server` for route protection and `@fastxyz/x402-facilitator` 
 
 ```ts
 import express from 'express';
-import { paymentMiddleware } from '@fastxyz/x402-server';
 import { createFacilitatorServer } from '@fastxyz/x402-facilitator';
+import { paymentMiddleware } from '@fastxyz/x402-server';
+
+const FASTUSD = '0xc655a12330da6af361d281b197996d2bc135aaed3b66278e729c2222291e9130';
 
 const facilitator = express();
 facilitator.use(express.json());
-facilitator.use(createFacilitatorServer({
-  evmPrivateKey: process.env.FACILITATOR_KEY as `0x${string}`,
-}));
+facilitator.use(
+  createFacilitatorServer({
+    fastNetworks: {
+      'fast-mainnet': {
+        rpcUrl: 'https://api.fast.xyz/proxy-rest',
+        committeePublicKeys: process.env.FAST_COMMITTEE_PUBLIC_KEYS!.split(','),
+      },
+    },
+  }),
+);
 facilitator.listen(4020);
 
 const app = express();
-app.use(paymentMiddleware(
-  {
-    evm: '0x1234...',
-    fast: 'fast1abc...',
-  },
-  {
-    'GET /api/premium/*': {
-      price: '$0.10',
-      network: 'base-sepolia',
+app.use(
+  paymentMiddleware(
+    { fast: 'fast1merchant...' },
+    {
+      '/api/premium': {
+        price: '$0.10',
+        network: 'fast-mainnet',
+        networkConfig: { asset: FASTUSD, decimals: 6 },
+      },
     },
-  },
-  { url: 'http://localhost:4020' },
-));
+    { url: 'http://localhost:4020' },
+  ),
+);
+app.listen(3000);
 ```
 
 ## Flow
@@ -37,13 +47,13 @@ app.use(paymentMiddleware(
 1. API returns 402 requirements for protected routes
 2. Client retries with `X-PAYMENT`
 3. Server asks facilitator to verify the payment
-4. Facilitator settles EVM payments if needed
+4. Facilitator settles the payment
 5. API serves the protected response
 
 ## Checks
 
-- use a facilitator-supported network such as `base-sepolia`, `base`, `arbitrum`, `ethereum`, or `fast-mainnet`
-- if you expose `fast-testnet`, do not rely on the server defaults alone; provide the Fast token asset explicitly
+- every route needs `networkConfig` (asset and decimals); there are no defaults
+- the facilitator must be configured for every network the routes advertise: `fastNetworks` for Fast, `evmChains` (with a viem `Chain` and `evmPrivateKey`) for EVM
 - route acceptance in `@fastxyz/x402-server` does not guarantee the facilitator can verify or settle that network
 - facilitator must be reachable from the API server
 - `express.json()` is required on the facilitator process

@@ -1,0 +1,25 @@
+name: Validate docs
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, to catch a package published without the skill being updated.
+    - cron: '17 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Checks relative links, that every @fastxyz package named is published, that every
+      # imported symbol is exported by the latest release, and that TypeScript examples type-check.
+      - run: npm run validate
