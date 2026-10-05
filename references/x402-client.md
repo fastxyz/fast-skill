@@ -51,7 +51,7 @@ console.log(result.statusCode, result.body);
 
 ## Enforce A Payment Policy
 
-`x402Pay(...)` pays whatever the `402` asks: on Fast it submits the transfer of `maxAmountRequired` to `payTo` as soon as it reads the `402`, before retrying the request, and it has no hook to stop it. Checking a `402` yourself first doesn't help, because `x402Pay` fetches the URL again. To pay only within a pinned policy, parse and check the `402`, then pay that exact requirement with `handleFastPayment(...)`:
+`x402Pay(...)` pays whatever the `402` asks: on Fast it submits the transfer of `maxAmountRequired` to `payTo` as soon as it reads the `402`, before retrying the request, and it has no hook to stop it. Checking a `402` yourself first doesn't help, because `x402Pay` fetches the URL again. To pay only within a pinned policy, parse and check the `402` (including its payment scheme), then pay that exact requirement with `handleFastPayment(...)`:
 
 ```ts
 import { handleFastPayment, parse402Response } from '@fastxyz/x402-client';
@@ -71,6 +71,7 @@ const paymentRequired = await parse402Response(response);
 
 const requirement = (paymentRequired.accepts ?? []).find(
   (r) =>
+    r.scheme === 'exact' &&
     r.network === policy.network &&
     r.asset !== undefined &&
     hex(r.asset) === policy.asset &&
@@ -102,7 +103,7 @@ The Fast transfer happens before the paid retry, so the money has moved even if 
 ## Production Guardrails
 
 - Only call `x402Pay(...)` against trusted or allowlisted API origins.
-- Pin the expected payment network, asset, recipient and a maximum spend, and pay only a requirement that matches them (see above). `x402Pay(...)` does not do this for you.
+- Pin the expected payment scheme, network, asset, recipient and a maximum spend, and pay only a requirement that matches them (see above). `x402Pay(...)` does not do this for you.
 - Confirm whether the user means mainnet (real funds) or testnet before paying.
 - Don't pass both wallets by default: that enables auto-bridge, which needs the user's explicit approval of the bridge path, destination network and spend ceiling.
 

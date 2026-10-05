@@ -5,7 +5,7 @@ This is a composed flow, not one SDK call.
 ## Structure
 
 1. Deposit from the source EVM chain into Fast with `executeDeposit(...)` ([EVM-to-Fast deposit flow](./evm-to-fast-deposit.md))
-2. Wait until the Fast account actually holds the bridged funds
+2. Wait until the specific source deposit is credited to the Fast account
 3. Withdraw from Fast to the destination EVM chain with `executeWithdraw(...)` ([Fast-to-EVM withdraw flow](./fast-to-evm-withdraw.md))
 4. Wait until the destination EVM address actually holds the funds
 
@@ -15,7 +15,7 @@ This only works if both legs have a deployed route (mainnet: `ethereum`, `arbitr
 
 ## Waiting Between Legs
 
-`executeDeposit(...)` returns once the EVM deposit transaction is submitted; the Fast-side credit comes later. A single balance read doesn't prove this deposit arrived (the account may already have held fastUSD), so read the balance before the deposit and poll until it has grown by the deposited amount, with a timeout:
+`executeDeposit(...)` returns once the EVM deposit transaction is submitted; the Fast-side credit comes later. A balance increase alone does not identify that deposit: an unrelated credit of the same amount could arrive first. The following balance poll is only a candidate signal for a dedicated intermediate account. Before using it to start the withdrawal, verify that there were no other credits or debits from the initial balance read through the final read. If the account is shared, or you cannot establish that exclusivity, correlate the Fast credit to the original source deposit transaction using trusted bridge/activity records. If you cannot make that correlation, stop rather than withdraw against an unrelated credit.
 
 ```ts
 import { FastProvider, fromHex, toHex } from '@fastxyz/sdk';
@@ -23,7 +23,7 @@ import { mainnet } from '@fastxyz/sdk/networks';
 
 const provider = new FastProvider(mainnet);
 const fastUsd = mainnet.defaultToken!.tokenId.toLowerCase();
-const intermediate = 'fast1intermediate...';
+const intermediate = 'fast1intermediate...'; // dedicated to this one bridge operation
 
 const fastUsdBalance = async (): Promise<bigint> => {
   const account = await provider.getAccountInfo({ address: intermediate, tokenBalancesFilter: [fromHex(fastUsd)] });
@@ -44,13 +44,13 @@ while ((await fastUsdBalance()) < before + deposited) {
 }
 ```
 
-This assumes nothing else spends from the intermediate account while you wait.
+The loop only establishes that enough fastUSD is present; it does not itself prove deposit identity. Do not start the withdrawal until the no-other-credits-or-debits condition or the original-deposit correlation above has been checked.
 
 ## Checks
 
 - explain the two-leg model and its timing to the user
 - verify both routes before implementing
 - the intermediate Fast address must be the account whose `Signer` signs the withdrawal leg
-- wait for the deposit to settle on Fast before starting the withdrawal
+- verify the Fast credit belongs to this source deposit before starting the withdrawal
 - wait for the withdrawal to land on the destination chain before treating the transfer as complete
 - do not hide timing or relayer risk
