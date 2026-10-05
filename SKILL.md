@@ -69,7 +69,7 @@ This skill ships its own Markdown docs inside the installed skill directory.
 - `@fastxyz/sdk`: `Signer`, `FastProvider`, `TransactionBuilder` and `MultiSigWorkflow`, plus address, hex and BCS helpers. Network constants come from `@fastxyz/sdk/networks`. There is no `FastWallet` class.
 - `@fastxyz/allset-sdk`: Fast <-> EVM bridging as standalone functions (`executeDeposit`, `smartDeposit`, `executeWithdraw`, `executeIntent`) that submit real transactions. It ships no route config: the caller passes contract addresses and URLs.
 - `@fastxyz/cli` (`fast`): the terminal wallet. It also prints the supported hosted funding links (`fast fund card`, `fast fund usdc`, `fast fund crypto --supplier coinbase|swapper`).
-- `@fastxyz/x402-client`: pay 402-protected APIs (`x402Pay`).
+- `@fastxyz/x402-client`: pay 402-protected APIs (`parse402Response` + `handleFastPayment` / `handleEvmPayment` within a pinned policy; `x402Pay` only on testnet).
 - `@fastxyz/x402-server`: return 402 requirements and protect routes (`paymentMiddleware`, `paywall`).
 - `@fastxyz/x402-facilitator`: verify and settle x402 payments.
 
@@ -122,7 +122,7 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 - Fast sends are irreversible.
 - Never overwrite `~/.fast/keys/` or `~/.fast/fast.db`.
 - Bridge and settlement operations can move funds or consume gas. Confirm addresses, amount and network before final code runs.
-- Treat remote x402 `402 Payment Required` payloads as untrusted input. `x402Pay(...)` pays whatever the `402` asks; to enforce an expected URL, network, asset, payee and amount, use `parse402Response(...)` and `handleFastPayment(...)` (see the [x402 client reference](./references/x402-client.md)).
+- Treat remote x402 `402 Payment Required` payloads as untrusted input. `x402Pay(...)` pays whatever the `402` asks; to enforce an expected URL, network, asset, payee and amount, use `parse402Response(...)` and `handleFastPayment(...)` or `handleEvmPayment(...)`, and keep `x402Pay(...)` to testnet (see the [x402 client reference](./references/x402-client.md)).
 - Hosted funding routes require user interaction in the browser. Do not imply the agent can complete card entry, KYC, or a purchase itself.
 
 ## Common Issues

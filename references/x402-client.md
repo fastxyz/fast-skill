@@ -30,19 +30,21 @@ The client has no network tables. You supply:
 - EVM wallet: `{ type: 'evm', privateKey, address }`, plus `evmNetworks[<network>] = { chainId, rpcUrl, usdcAddress }` for every EVM network you're willing to pay on.
 - Auto-bridge (Fast USDC to EVM USDC when the EVM balance is short): both wallets as an array, plus a `bridgeConfig` with the AllSet route values (`rpcUrl`, `fastBridgeAddress`, `relayerUrl`, `crossSignUrl`, `tokenEvmAddress`, `tokenFastTokenId`, `networkId`).
 
-## Pay On Fast
+## Quick Check On Testnet
+
+`x402Pay(...)` does the whole round trip in one call, with no spend limit. Use it on testnet or against your own server; for anything that moves real funds, use [Enforce A Payment Policy](#enforce-a-payment-policy) instead.
 
 ```ts
 import { x402Pay } from '@fastxyz/x402-client';
 
 const result = await x402Pay({
-  url: 'https://api.example.com/premium',
+  url: 'https://api.example.com/premium', // a testnet API you run or trust
   wallet: {
     type: 'fast',
     privateKey: process.env.FAST_PRIVATE_KEY!,
     publicKey: process.env.FAST_PUBLIC_KEY!,
     address: process.env.FAST_ADDRESS!, // fast1...
-    rpcUrl: 'https://api.fast.xyz/proxy-rest',
+    rpcUrl: 'https://testnet.api.fast.xyz/proxy-rest',
   },
 });
 
@@ -102,7 +104,7 @@ The Fast transfer happens before the paid retry, so the money has moved even if 
 
 ## Production Guardrails
 
-- Only call `x402Pay(...)` against trusted or allowlisted API origins.
+- Use `x402Pay(...)` only on testnet or against your own server; in production, pay through `parse402Response(...)` and `handleFastPayment(...)` / `handleEvmPayment(...)` with a pinned policy.
 - Pin the expected payment scheme, network, asset, recipient and a maximum spend, and pay only a requirement that matches them (see above). `x402Pay(...)` does not do this for you.
 - Confirm whether the user means mainnet (real funds) or testnet before paying.
 - Don't pass both wallets by default: that enables auto-bridge, which needs the user's explicit approval of the bridge path, destination network and spend ceiling.
