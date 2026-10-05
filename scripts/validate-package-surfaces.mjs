@@ -10,12 +10,16 @@
 // drift when a package is published without the skill being updated. Set
 // FAST_SKILL_KEEP_TMP=1 to keep that directory for debugging.
 
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 
 const root = process.cwd();
+// npm is npm.cmd on Windows, which can only start through a shell. Every
+// argument passed to it here is a package name or a fixed flag.
+const npmOptions = { shell: process.platform === 'win32' };
 const failures = [];
 
 function walk(dir) {
@@ -40,7 +44,9 @@ for (const filePath of markdownFiles) {
   const content = fs.readFileSync(filePath, 'utf8');
   for (const match of content.matchAll(/@fastxyz\/[a-z0-9-]+/g)) mentioned.add(match[0]);
   let index = 0;
-  for (const match of content.matchAll(/```(ts|typescript|js|javascript)\n([\s\S]*?)```/g)) {
+  // A fence opens and closes at the start of a line (indented or not, CRLF or LF,
+  // trailing spaces allowed), so a ``` inside a line never ends a block early.
+  for (const match of content.matchAll(/^[ \t]*```(ts|typescript|js|javascript)[ \t]*\r?\n([\s\S]*?)^[ \t]*```[ \t]*\r?$/gm)) {
     index += 1;
     codeBlocks.push({ file: relativePath, index, lang: match[1], code: match[2] });
   }
@@ -67,15 +73,19 @@ for (const block of codeBlocks) {
   }
 }
 
-// 1. Mentioned packages are published.
+// 1. Mentioned packages are published (looked up in parallel).
 const versions = {};
-for (const name of [...mentioned].sort()) {
-  try {
-    versions[name] = execFileSync('npm', ['view', name, 'version'], { encoding: 'utf8' }).trim();
-  } catch {
-    failures.push(`${name} is mentioned in the docs but is not published on npm`);
-  }
-}
+const run = promisify(execFile);
+await Promise.all(
+  [...mentioned].sort().map(async (name) => {
+    try {
+      versions[name] = (await run('npm', ['view', name, 'version'], { encoding: 'utf8', ...npmOptions })).stdout.trim();
+    } catch {
+      failures.push(`${name} is mentioned in the docs but is not published on npm`);
+    }
+  }),
+);
+failures.sort();
 
 const imported = [...new Set(imports.map((entry) => packageName(entry.specifier)))].filter((name) => versions[name]);
 const tsBlocks = codeBlocks.filter((block) => block.lang === 'ts' || block.lang === 'typescript');
@@ -93,7 +103,8 @@ try {
     ...(needsViem ? ['viem'] : []),
   ];
   console.log(`Installing ${install.join(', ')}`);
-  execFileSync('npm', ['install', '--no-audit', '--no-fund', '--loglevel=error', ...install], { cwd: tmp, stdio: 'inherit' });
+  // --ignore-scripts: nothing here needs an install script, so no dependency gets to run one.
+  execFileSync('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--loglevel=error', ...install], { cwd: tmp, stdio: 'inherit', ...npmOptions });
 
   // 2. Imported names are runtime exports.
   const bySpecifier = new Map();
@@ -156,12 +167,13 @@ console.log(JSON.stringify(results));
   );
   if (tsBlocks.length > 0) {
     try {
-      execFileSync(path.join(tmp, 'node_modules', '.bin', 'tsc'), ['-p', 'tsconfig.json'], { cwd: tmp, encoding: 'utf8' });
+      // tsc's JS entry point through this Node.js, which works on every platform (.bin/tsc is tsc.cmd on Windows).
+      execFileSync(process.execPath, [path.join(tmp, 'node_modules', 'typescript', 'bin', 'tsc'), '-p', 'tsconfig.json'], { cwd: tmp, encoding: 'utf8' });
     } catch (error) {
       const output = `${error.stdout ?? ''}${error.stderr ?? ''}`;
       const lines = output.split('\n').filter(Boolean);
       for (const line of lines) {
-        const fileName = line.match(/examples\/([^(]+)\(/)?.[1];
+        const fileName = line.match(/examples[\\/]([^(]+)\(/)?.[1];
         failures.push(fileName ? `${exampleFiles[fileName]}: ${line.slice(line.indexOf(':') + 1).trim()}` : line);
       }
       // A failure without diagnostics (tsc missing, killed, ...) must not pass as success.
