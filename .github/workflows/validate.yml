@@ -1,0 +1,29 @@
+name: Validate docs
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, to catch a package published without the skill being updated.
+    - cron: '17 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # The skill declares Node.js 20+: check the oldest supported line, the maintenance LTS and the active LTS.
+        node-version: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      # Checks relative links, that every @fastxyz package named is published, that every
+      # imported symbol is exported by the latest release, and that TypeScript examples type-check.
+      - run: npm run validate

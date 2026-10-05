@@ -4,67 +4,53 @@ This is a composed flow, not one SDK call.
 
 ## Structure
 
-1. Deposit from the source EVM chain into Fast using `@fastxyz/allset-sdk`
-2. Withdraw from Fast to the destination EVM chain using `@fastxyz/allset-sdk`
+1. Deposit from the source EVM chain into Fast with `executeDeposit(...)` ([EVM-to-Fast deposit flow](./evm-to-fast-deposit.md))
+2. Wait until the specific source deposit is credited to the Fast account
+3. Withdraw from Fast to the destination EVM chain with `executeWithdraw(...)` ([Fast-to-EVM withdraw flow](./fast-to-evm-withdraw.md))
+4. Wait until the destination EVM address actually holds the funds
 
 ## Important Constraint
 
-This only works if both bridge legs are individually supported by the shipped SDK config. Do not describe it as atomic or universally available.
+This only works if both legs have a deployed route (mainnet: `ethereum`, `arbitrum`, `base`, `polygon`, `arc`; testnet: `arbitrum-sepolia`, `ethereum-sepolia`) and you have trusted route values for both chains. Do not describe it as atomic or universally available.
 
-## Skeleton
+## Waiting Between Legs
 
-```ts
-import { FastProvider, FastWallet } from '@fastxyz/sdk';
-import { AllSetProvider, createEvmExecutor, createEvmWallet } from '@fastxyz/allset-sdk/node';
-
-const account = createEvmWallet(process.env.EVM_PRIVATE_KEY!);
-const evmClients = createEvmExecutor(account, process.env.ARBITRUM_SEPOLIA_RPC_URL!, 421614);
-const fastProvider = new FastProvider({ network: 'testnet' });
-const fastWallet = await FastWallet.fromKeyfile('~/.fast/keys/default.json', fastProvider);
-const allset = new AllSetProvider({ network: 'testnet' });
-
-const deposit = await allset.sendToFast({
-  chain: 'arbitrum-sepolia',
-  token: 'USDC',
-  amount: '1000000',
-  from: account.address,
-  to: fastWallet.address,
-  evmClients,
-});
-
-console.log(deposit.orderId);
-console.log(deposit.estimatedTime);
-```
-
-Wait until the intermediate Fast wallet actually receives the bridged funds before starting the withdrawal leg. `sendToFast(...)` submits the deposit leg, but it does not guarantee the Fast-side balance is already available.
-
-After the deposit settles on Fast, run the withdrawal leg:
+`executeDeposit(...)` returns once the EVM deposit transaction is submitted; the Fast-side credit comes later. A balance increase alone does not identify that deposit: an unrelated credit of the same amount could arrive first. The following balance poll is only a candidate signal for a dedicated intermediate account. Before using it to start the withdrawal, verify that there were no other credits or debits from the initial balance read through the final read. If the account is shared, or you cannot establish that exclusivity, correlate the Fast credit to the original source deposit transaction using trusted bridge/activity records. If you cannot make that correlation, stop rather than withdraw against an unrelated credit.
 
 ```ts
+import { FastProvider, fromHex, toHex } from '@fastxyz/sdk';
+import { mainnet } from '@fastxyz/sdk/networks';
 
-const withdraw = await allset.sendToExternal({
-  chain: 'base',
-  token: 'USDC',
-  amount: '1000000',
-  from: fastWallet.address,
-  to: '0xDestinationAddress',
-  fastWallet,
-});
+const provider = new FastProvider(mainnet);
+const fastUsd = mainnet.defaultToken!.tokenId.toLowerCase();
+const intermediate = 'fast1intermediate...'; // dedicated to this one bridge operation
 
-console.log(withdraw.orderId);
-console.log(withdraw.estimatedTime);
+const fastUsdBalance = async (): Promise<bigint> => {
+  const account = await provider.getAccountInfo({ address: intermediate, tokenBalancesFilter: [fromHex(fastUsd)] });
+  const entry = account.tokenBalance.find(([tokenId]) => toHex(tokenId).toLowerCase() === fastUsd);
+  return entry ? entry[1] : 0n;
+};
+
+// Read before submitting the deposit leg.
+const before = await fastUsdBalance();
+const deposited = 1_000_000n; // the deposit amount in base units
+
+// ... submit the deposit with executeDeposit(...) here ...
+
+const deadline = Date.now() + 30 * 60_000;
+while ((await fastUsdBalance()) < before + deposited) {
+  if (Date.now() > deadline) throw new Error('Deposit not credited on Fast in 30 minutes; not starting the withdrawal.');
+  await new Promise((resolve) => setTimeout(resolve, 10_000));
+}
 ```
 
-Wait until the destination EVM wallet actually receives the funds before treating the chain-to-chain transfer as complete. `sendToExternal(...)` submits the withdrawal leg to the relayer, but it does not guarantee the destination balance is already updated.
+The loop only establishes that enough fastUSD is present; it does not itself prove deposit identity. Do not start the withdrawal until the no-other-credits-or-debits condition or the original-deposit correlation above has been checked.
 
 ## Checks
 
-- explain the two-leg model to the user
-- verify support for both legs before implementing
-- bundled AllSet chain keys are `ethereum-sepolia`, `arbitrum-sepolia`, and `base`
-- the example shows Arbitrum -> Fast -> Base, but any route still needs both legs shipped in the current SDK config
-- wait for the deposit leg to settle on Fast before starting the withdrawal leg
-- wait for the withdrawal leg to settle on the destination EVM chain before treating the transfer as complete
-- use `@fastxyz/allset-sdk/node` for explicit runtime examples; the root package currently re-exports the same runtime APIs too
-- the intermediate Fast address should be the same wallet that signs the withdrawal leg
+- explain the two-leg model and its timing to the user
+- verify both routes before implementing
+- the intermediate Fast address must be the account whose `Signer` signs the withdrawal leg
+- verify the Fast credit belongs to this source deposit before starting the withdrawal
+- wait for the withdrawal to land on the destination chain before treating the transfer as complete
 - do not hide timing or relayer risk
