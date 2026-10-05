@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # The skill declares Node.js 20+; check the oldest supported line and the current LTS.
-        node-version: [20, 22]
+        # The skill declares Node.js 20+: check the oldest supported line, the maintenance LTS and the active LTS.
+        node-version: [20, 22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

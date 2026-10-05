@@ -29,7 +29,8 @@ console.log('');
 for (const name of [...names].sort()) {
   let version;
   try {
-    version = execFileSync('npm', ['view', name, 'version'], { encoding: 'utf8' }).trim();
+    // npm is npm.cmd on Windows, which only starts through a shell; name is a package name.
+    version = execFileSync('npm', ['view', name, 'version'], { encoding: 'utf8', shell: process.platform === 'win32' }).trim();
   } catch {
     version = '(not published)';
   }
