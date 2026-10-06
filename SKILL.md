@@ -6,14 +6,14 @@ description: >
   @fastxyz/x402-facilitator; wants to build Fast transfers, Fast to EVM or EVM to Fast bridging,
   or x402 payments into their own code; needs hosted fastUSD funding links for a Fast address its
   code manages; or asks which FAST package fits. For a person managing their own wallet (balance,
-  sends, adding funds, payment requests) from the terminal, route to the `fast` CLI skill. Do not use for
-  generic EVM wallets, generic bridging, unrelated HTTP 402 questions, or non-FAST payment stacks.
+  sends, adding funds, payment requests) from the terminal, route to the `fast` CLI skill; for buying
+  physical products, route to the `fast-shop` skill. Do not use for generic EVM wallets, generic bridging, unrelated HTTP 402 questions, or non-FAST payment stacks.
 compatibility: >
   Portable across Claude- and Codex-style skill runtimes with Node.js 20+ package install support
   and network access. Examples assume TypeScript and ESM. Examples pass the Fast network
   explicitly; mainnet moves real funds.
 metadata:
-  version: 0.3.0
+  version: 0.3.1
   canonical_url: https://raw.githubusercontent.com/fastxyz/fast-skill/main/SKILL.md
   docs_base_url: https://raw.githubusercontent.com/fastxyz/fast-skill/main/
   source_repo: https://github.com/fastxyz/fast-skill
@@ -43,11 +43,12 @@ This skill ships its own Markdown docs inside the installed skill directory.
 - If this file was loaded from a URL, resolve those paths against the same directory. The canonical copy is `https://raw.githubusercontent.com/fastxyz/fast-skill/main/SKILL.md`.
 - `https://skill.fast.xyz/skill.md` is a different skill: the `fast` CLI skill (`skills/fast/SKILL.md` in fastxyz/fast-sdk). Do not resolve this skill's paths against `skill.fast.xyz`.
 
-## Two FAST Skills
+## Three FAST Skills
 
 | The user wants to... | Use |
 | --- | --- |
 | Manage their own money: balances, sends, adding funds to their own wallet, payment requests, bridging, paying an x402 URL | The `fast` CLI skill (`https://skill.fast.xyz/skill.md`). It runs the `fast` CLI for them (`fast fund …` prints the hosted funding links) and carries the agent playbook (network, confirmations, fees). Don't write SDK code for this. |
+| Buy physical products (search, compare, quote, order, track, cancel) | The `fast-shop` skill (`https://shop.fast.xyz/.well-known/agent-skills/fast-shop/SKILL.md`). It runs the Fast Shop MCP server (`npx -y @fastxyz/mcp@latest`), which pays from the user's Fast wallet and handles the merchant flow. Don't call the shop's HTTP endpoints or pay merchants directly. |
 | Build Fast payments, bridging, x402, or hosted funding links for addresses their code manages into their own code | This skill |
 
 ## Example Requests
@@ -60,6 +61,7 @@ This skill ships its own Markdown docs inside the installed skill directory.
 ## Do Not Use For
 
 - managing a person's own wallet from the terminal: use the `fast` CLI skill
+- buying physical products: use the `fast-shop` skill
 - generic EVM wallet code that does not touch FAST
 - arbitrary EVM to EVM bridging presented as one SDK call
 - unrelated HTTP 402 questions, payment compliance research, or non-FAST API monetization stacks
@@ -134,7 +136,7 @@ Load a flow playbook when the user asks for an end-to-end scenario:
 
 ## Working Pattern
 
-1. Classify the request: the person's own money (route to the `fast` CLI skill), Fast payment code, bridge, x402 client, x402 server, or facilitator.
+1. Classify the request: the person's own money (route to the `fast` CLI skill), buying products (route to the `fast-shop` skill), Fast payment code, bridge, x402 client, x402 server, or facilitator.
 2. Read the matching reference file, then the installed package's README for the exact API.
 3. If the task is scenario-based, read the matching flow file too.
 4. For low-balance/top-up requests on a wallet your code manages, check the wallet network. Offer a hosted route only for Fast mainnet, wait for the user to complete it, then re-check the Fast balance before continuing. For testnet, use only a separately verified testnet funding method.
